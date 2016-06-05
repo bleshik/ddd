@@ -23,7 +23,7 @@ abstract class EventSourcedRepository[T <: EventSourcedEntity[T] with Identified
   }
 
   private def getByStreamName(streamName: String, version: Long, snapshot: Option[T] = None): Option[T] = {
-    eventStore.streamSince(streamName, snapshot.map(e => e.getUnmutatedVersion()).getOrElse(-1)).asScala.map(_.events.toScala[Stream]).flatMap { events =>
+    eventStore.streamSince(streamName, snapshot.map(e => e.getUnmutatedVersion()).getOrElse(-1)).asScala.map(_.toScala[Stream]).flatMap { events =>
       if (events.isEmpty || events.lastOption.exists(_.isInstanceOf[RemovedEvent[K]])) {
         return snapshot
       }
@@ -54,7 +54,7 @@ abstract class EventSourcedRepository[T <: EventSourcedEntity[T] with Identified
       get(id, after).asScala match {
         case Some(entity) =>
           var mutatedEntity = entity.asInstanceOf[T]
-          eventStore.streamSince(streamName(id), after).asScala.map(_.events.toScala[Stream]).flatMap { events =>
+          eventStore.streamSince(streamName(id), after).asScala.map(_.toScala[Stream]).flatMap { events =>
             var i: Int = 0
             while (min(changes.length, events.length) > i && changes(i).equals(events(i))) {
               mutatedEntity = mutatedEntity.apply(events(i))

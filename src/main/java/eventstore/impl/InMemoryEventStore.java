@@ -12,7 +12,6 @@ import java.util.ConcurrentModificationException;
 
 import eventstore.api.Event;
 import eventstore.api.EventStore;
-import eventstore.api.EventStream;
 
 public class InMemoryEventStore implements EventStore {
 
@@ -22,7 +21,7 @@ public class InMemoryEventStore implements EventStore {
   public void close() {}
 
   @Override
-  public Optional<EventStream> streamSince(String streamName, long lastReceivedEvent) {
+  public Optional<Stream<Event>> streamSince(String streamName, long lastReceivedEvent) {
     List<Event> allEvents = Optional.ofNullable(streams.get(streamName)).orElse(Collections.emptyList());
     if (lastReceivedEvent > allEvents.size()) {
       throw new IllegalArgumentException("Invalid version " + 
@@ -36,7 +35,7 @@ public class InMemoryEventStore implements EventStore {
       List<Event> newEvents = lastReceivedEvent >= 0 && lastReceivedEvent <= allEvents.size() ?
         allEvents.subList((int) lastReceivedEvent, allEvents.size()) :
         allEvents;
-      return Optional.of(new EventStream(allEvents.size(), newEvents.stream()));
+      return Optional.of(newEvents.stream());
     }
   }
 
@@ -45,7 +44,7 @@ public class InMemoryEventStore implements EventStore {
     // one global lock is enough for tests
     synchronized(streams) {
       List<Event> curEvents = Optional.ofNullable(streams.get(streamName)).orElse(Collections.emptyList());
-      if (curEvents.size() != currentVersion) {
+      if (version(streamName) != currentVersion) {
         throw new ConcurrentModificationException();
       }
       streams.put(streamName, new ArrayList<Event>() {{ addAll(curEvents); addAll(newEvents); }});
