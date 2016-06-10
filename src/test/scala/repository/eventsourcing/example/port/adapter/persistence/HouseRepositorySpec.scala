@@ -4,6 +4,7 @@ import java.util.Optional
 import eventstore.impl.InMemoryEventStore
 import org.scalatest._
 import repository.eventsourcing.example.domain.{House, HouseRepository}
+import repository.eventsourcing.EventSourcingConflictException
 
 class HouseRepositorySpec extends FlatSpec with Matchers {
   val awesomeHouse = House.build("100500 Awesome str., Chicago, USA", 100500, "Alexey Balchunas")
@@ -19,7 +20,7 @@ class HouseRepositorySpec extends FlatSpec with Matchers {
       new EventSourcedHouseRepository(new InMemoryEventStore)
     ).foreach(successHouseScenario)
   }
-  
+
   "conflict" should "be handled properly" in {
     List(
       new EventSourcedHouseRepository(new InMemoryEventStore)
@@ -53,7 +54,7 @@ class HouseRepositorySpec extends FlatSpec with Matchers {
   
   private def failedHouseScenario(houseRepository: HouseRepository): Unit = {
     houseRepository.save(awesomeHouse.destroy())
-    a [IllegalStateException] shouldBe thrownBy {
+    a [EventSourcingConflictException] shouldBe thrownBy {
       houseRepository.save(awesomeHouse.buy("Stepan Stepanov"))
     }
   }

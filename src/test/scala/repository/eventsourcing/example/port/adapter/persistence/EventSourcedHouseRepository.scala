@@ -4,6 +4,6 @@ import eventstore.api.EventStore
 import repository.eventsourcing.EventSourcedRepository
 import repository.eventsourcing.example.domain.{House, HouseRepository}
 
-class EventSourcedHouseRepository(override val eventStore: EventStore) extends EventSourcedRepository[House, String](eventStore) with HouseRepository  {
+class EventSourcedHouseRepository(eventStore: EventStore) extends EventSourcedRepository[House, String](eventStore) with HouseRepository  {
 
 }

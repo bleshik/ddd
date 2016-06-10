@@ -20,7 +20,7 @@ public abstract class EventSourcedEntity<T extends EventSourcedEntity<T>> implem
         this.initialEvent = initialEvent;
     }
 
-    public T apply(Event event) throws Throwable {
+    public T apply(Event event) throws Exception {
         EventSourcedEntity mutatedEntity = mutate(event);
         mutatedEntity._mutatingChanges = new ArrayList<Event>() {{ addAll(_mutatingChanges); add(event); }};
         mutatedEntity._version = this._version + 1;
@@ -29,7 +29,7 @@ public abstract class EventSourcedEntity<T extends EventSourcedEntity<T>> implem
         return (T) mutatedEntity;
     }
 
-    private T mutate(Event event) throws Throwable {
+    private T mutate(Event event) throws Exception {
         if (event == null) {
             return (T) this;
         }
@@ -42,7 +42,12 @@ public abstract class EventSourcedEntity<T extends EventSourcedEntity<T>> implem
         } catch(IllegalAccessException e) {
             throw new AssertionError();
         } catch(InvocationTargetException e) {
-            throw e.getCause();
+            Throwable cause = e.getCause();
+            if (cause instanceof Exception) {
+                throw ((Exception) cause);
+            } else {
+                throw ((Error) cause);
+            }
         }
     }
 
