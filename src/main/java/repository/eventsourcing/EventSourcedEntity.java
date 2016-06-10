@@ -1,10 +1,13 @@
 package repository.eventsourcing;
 
+import org.apache.commons.lang3.builder.ToStringStyle;
+import org.apache.commons.lang3.builder.ToStringBuilder;
 import java.util.Collections;
 import java.util.List;
 import java.util.ArrayList;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.function.Function;
 
 import eventstore.api.Event;
 
@@ -20,16 +23,17 @@ public abstract class EventSourcedEntity<T extends EventSourcedEntity<T>> implem
         this.initialEvent = initialEvent;
     }
 
-    public T apply(Event event) throws Exception {
+    public T apply(Event event) {
         EventSourcedEntity mutatedEntity = mutate(event);
         mutatedEntity._mutatingChanges = new ArrayList<Event>() {{ addAll(_mutatingChanges); add(event); }};
         mutatedEntity._version = this._version + 1;
         mutatedEntity._committedVersion = this._committedVersion;
         mutatedEntity._updateDate = System.currentTimeMillis();
+        mutatedEntity.initialEvent = this.initialEvent;
         return (T) mutatedEntity;
     }
 
-    private T mutate(Event event) throws Exception {
+    private T mutate(Event event) {
         if (event == null) {
             return (T) this;
         }
@@ -37,17 +41,13 @@ public abstract class EventSourcedEntity<T extends EventSourcedEntity<T>> implem
         if (when == null) {
             return (T) this;
         }
+        when.setAccessible(true);
         try {
             return (T) when.invoke(this, event);
         } catch(IllegalAccessException e) {
             throw new AssertionError();
         } catch(InvocationTargetException e) {
-            Throwable cause = e.getCause();
-            if (cause instanceof Exception) {
-                throw ((Exception) cause);
-            } else {
-                throw ((Error) cause);
-            }
+            throw new EventSourcingException(String.format("Exception occurred while applying the event %s on the entity %s.", event, this), e.getCause());
         }
     }
 
@@ -80,9 +80,14 @@ public abstract class EventSourcedEntity<T extends EventSourcedEntity<T>> implem
     private Method findMutatingMethod(Class<? extends Event> eventClass) {
         //TODO: cache it
         try {
-            return this.getClass().getMethod(MUTATE_METHOD_NAME, eventClass);
+            return this.getClass().getDeclaredMethod(MUTATE_METHOD_NAME, eventClass);
         } catch(NoSuchMethodException e) {
             return null;
         }
+    }
+
+    @Override
+    public String toString() {
+        return ToStringBuilder.reflectionToString(this, ToStringStyle.SHORT_PREFIX_STYLE);
     }
 }

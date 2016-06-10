@@ -20,9 +20,7 @@ libraryDependencies += "org.apache.commons" % "commons-lang3" % "3.3.2"
 
 libraryDependencies += "org.slf4j" % "slf4j-api" % "1.7.7"
 
-libraryDependencies += "org.scalatest" %% "scalatest" % "2.2.1" % "test"
-
-libraryDependencies += "com.github.fakemongo" % "fongo" % "1.5.10" % "test"
+libraryDependencies += "junit" % "junit" % "4.12"
 
 libraryDependencies += "com.fasterxml.jackson.core" % "jackson-databind" % "2.4.3"
 
@@ -31,6 +29,8 @@ libraryDependencies += "com.fasterxml.jackson.module" %% "jackson-module-scala" 
 libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.1.0"
 
 libraryDependencies += "org.slf4j" % "slf4j-simple" % "1.7.10"
+
+libraryDependencies += "com.novocode" % "junit-interface" % "0.11" % "test"
 
 libraryDependencies += "org.scala-lang.modules" %% "scala-java8-compat" % "0.8.0-RC1" exclude("org.scala-lang", "scala-library")
 

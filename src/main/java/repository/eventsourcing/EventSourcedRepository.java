@@ -54,7 +54,7 @@ public abstract class EventSourcedRepository<T extends EventSourcedEntity<T> & I
                 if (event instanceof RemovedEvent) {
                     return Optional.empty();
                 }
-                entity = apply(entity, event);
+                entity = entity.apply(event);
             }
             return Optional.of(entity.commitChanges());
         });
@@ -82,7 +82,7 @@ public abstract class EventSourcedRepository<T extends EventSourcedEntity<T> & I
                     Event newEvent = null;
                     Event savedEvent = null;
                     while(events.hasNext()) {
-                        mutatedEntity = apply(mutatedEntity, (savedEvent = events.next()));
+                        mutatedEntity = mutatedEntity.apply(savedEvent = events.next());
                         // Trying to find the event, where the stream starts to differ from the saved one.
                         if (newEvent == null) {
                             newEvent = changesIterator.next();
@@ -95,21 +95,12 @@ public abstract class EventSourcedRepository<T extends EventSourcedEntity<T> & I
                     // Do not forget to apply the first different event we found,
                     // since it's already read from the iterator.
                     if (newEvent != null) {
-                        mutatedEntity = apply(mutatedEntity, newEvent);
+                        mutatedEntity = mutatedEntity.apply(newEvent);
                     }
-                    while(changesIterator.hasNext()) { mutatedEntity = apply(mutatedEntity, changesIterator.next()); }
+                    while(changesIterator.hasNext()) { mutatedEntity = mutatedEntity.apply(changesIterator.next()); }
                     return mutatedEntity;
                 });
             });
-        }
-    }
-
-    private T apply(T entity, Event event) {
-        try {
-            T mutatedEntity = entity.apply(event);
-            return mutatedEntity;
-        } catch (Exception e) {
-            throw new EventSourcingException(String.format("Error while applying the event %s on the entity %s.", event, entity), e);           
         }
     }
 
