@@ -17,10 +17,10 @@ public abstract class EventSourcedEntity<T extends EventSourcedEntity<T>> implem
     private long _version = 1;
     private long _updateDate = System.currentTimeMillis();
     private long _committedVersion = 0;
-    private InitialEvent<T> initialEvent;
+    private InitialEvent<T> _initialEvent;
 
     protected EventSourcedEntity(InitialEvent<T> initialEvent) {
-        this.initialEvent = initialEvent;
+        this._initialEvent = initialEvent;
     }
 
     public T apply(Event event) {
@@ -29,8 +29,22 @@ public abstract class EventSourcedEntity<T extends EventSourcedEntity<T>> implem
         mutatedEntity._version = this._version + 1;
         mutatedEntity._committedVersion = this._committedVersion;
         mutatedEntity._updateDate = System.currentTimeMillis();
-        mutatedEntity.initialEvent = this.initialEvent;
+        mutatedEntity._initialEvent = this._initialEvent;
         return (T) mutatedEntity;
+    }
+
+    public long getMutatedVersion() { return _version; }
+
+    public long getUnmutatedVersion() { return _version - getChanges().size(); }
+
+    public long getUpdateDate() { return _updateDate; }
+
+    public List<Event> getChanges() {
+        if ((_version - _mutatingChanges.size() == 1) && _committedVersion == 0) {
+            return Collections.unmodifiableList(new ArrayList<Event>() {{ add(_initialEvent); addAll(_mutatingChanges); }});
+        } else {
+            return Collections.unmodifiableList(_mutatingChanges);
+        }
     }
 
     private T mutate(Event event) {
@@ -51,21 +65,7 @@ public abstract class EventSourcedEntity<T extends EventSourcedEntity<T>> implem
         }
     }
 
-    public long getMutatedVersion() { return _version; }
-
-    public long getUnmutatedVersion() { return _version - getChanges().size(); }
-
-    public long getUpdateDate() { return _updateDate; }
-
-    public List<Event> getChanges() {
-        if ((_version - _mutatingChanges.size() == 1) && _committedVersion == 0) {
-            return Collections.unmodifiableList(new ArrayList<Event>() {{ add(initialEvent); addAll(_mutatingChanges); }});
-        } else {
-            return Collections.unmodifiableList(_mutatingChanges);
-        }
-    }
-
-    public T commitChanges() {
+    T commitChanges() {
         try {
             EventSourcedEntity entity = (EventSourcedEntity) this.clone();
             entity._mutatingChanges = new ArrayList<>();

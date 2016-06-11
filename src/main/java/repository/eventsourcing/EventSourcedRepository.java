@@ -23,7 +23,7 @@ public abstract class EventSourcedRepository<T extends EventSourcedEntity<T> & I
 
     public EventSourcedRepository(EventStore eventStore) {
         this.eventStore = eventStore;
-        entityClass = (Class<T>) ((ParameterizedType) this.getClass()
+        this.entityClass = (Class<T>) ((ParameterizedType) this.getClass()
                 .getGenericSuperclass())
                 .getActualTypeArguments()[0];
     }

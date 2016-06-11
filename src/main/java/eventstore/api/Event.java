@@ -4,20 +4,25 @@ import org.apache.commons.lang3.builder.ToStringStyle;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
+import util.CloneWith;
 
-public abstract class Event {
-    private long _occurredOn = -1L;
+public abstract class Event<T extends Event> implements CloneWith<T> {
+    protected long occurredOn = -1L;
 
-    public long occurredOn() { return _occurredOn; }
+    public long getOccurredOn() { return occurredOn; }
+
+    public T occurred() {
+        return cloneWith(e -> e.occurredOn = System.currentTimeMillis());
+    }
 
     @Override
     public int hashCode() {
-        return HashCodeBuilder.reflectionHashCode(this, "_occurredOn");
+        return HashCodeBuilder.reflectionHashCode(this, "occurredOn");
     }
 
     @Override
     public boolean equals(Object obj) {
-        return EqualsBuilder.reflectionEquals(this, obj, "_occurredOn");
+        return EqualsBuilder.reflectionEquals(this, obj, "occurredOn");
     }
 
     @Override

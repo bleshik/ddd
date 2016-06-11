@@ -13,6 +13,8 @@ import java.util.ConcurrentModificationException;
 import eventstore.api.Event;
 import eventstore.api.EventStore;
 
+import static java.util.stream.Collectors.toList;
+
 public class InMemoryEventStore implements EventStore {
 
   private ConcurrentMap<String, List<Event>> streams = new ConcurrentHashMap<>();
@@ -47,7 +49,10 @@ public class InMemoryEventStore implements EventStore {
       if (version(streamName) != currentVersion) {
         throw new ConcurrentModificationException();
       }
-      streams.put(streamName, new ArrayList<Event>() {{ addAll(curEvents); addAll(newEvents); }});
+      streams.put(streamName, new ArrayList<Event>() {{
+          addAll(curEvents);
+          addAll(newEvents.stream().map(e -> e.occurred()).collect(toList()));
+      }});
     }
   }
 
