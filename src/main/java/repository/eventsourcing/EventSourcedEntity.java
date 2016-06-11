@@ -11,6 +11,7 @@ import java.util.function.Function;
 
 import eventstore.api.Event;
 
+@SuppressWarnings("unchecked")
 public abstract class EventSourcedEntity<T extends EventSourcedEntity<T>> implements Cloneable {
     private static final String MUTATE_METHOD_NAME = "when";
     private List<Event> _mutatingChanges = new ArrayList<>();
@@ -25,7 +26,7 @@ public abstract class EventSourcedEntity<T extends EventSourcedEntity<T>> implem
 
     public T apply(Event event) {
         EventSourcedEntity mutatedEntity = mutate(event);
-        mutatedEntity._mutatingChanges = new ArrayList<Event>() {{ addAll(_mutatingChanges); add(event); }};
+        mutatedEntity._mutatingChanges = new ArrayList<Event>(_mutatingChanges.size() + 1) {{ addAll(_mutatingChanges); add(event); }};
         mutatedEntity._version = this._version + 1;
         mutatedEntity._committedVersion = this._committedVersion;
         mutatedEntity._updateDate = System.currentTimeMillis();
