@@ -15,12 +15,12 @@ import ddd.eventstore.EventStore;
 
 import static java.util.stream.Collectors.toList;
 
+/**
+ * In-memory storage of events.
+ */
 public class InMemoryEventStore implements EventStore {
 
   private ConcurrentMap<String, List<Event>> streams = new ConcurrentHashMap<>();
-
-  @Override
-  public void close() {}
 
   @Override
   public Optional<Stream<Event>> streamSince(String streamName, long lastReceivedEvent) {

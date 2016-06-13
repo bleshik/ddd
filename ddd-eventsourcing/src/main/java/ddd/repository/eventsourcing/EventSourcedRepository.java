@@ -12,13 +12,25 @@ import ddd.util.RuntimeGeneric;
 import ddd.eventstore.Event;
 import ddd.eventstore.EventStore;
 import ddd.repository.IdentifiedEntity;
+import ddd.repository.TemporalRepository;
+import ddd.repository.PersistenceOrientedRepository;
 
 import static java.util.stream.Collectors.toSet;
 import static java.util.stream.Collectors.toList;
 
+/**
+ * Event Sourcing based Repository. Implements a simple variation of command query responsibility segregation (CQRS) based
+ * on events. Basically, it stores entity mutating events in one storage (for commands), and the current version of the
+ * entity (snapshots) in another separate storage (for queries).
+ * Handling of the events is handled by the given {@link EventStore}. For every entity in the repository there is a
+ * stream in the given {@link EventStore}.
+ * Note that the repository works only with a specific type of entities: {@link EventSourcedEntity}.
+ * @param T type of the stored objects.
+ * @param K type of the objects' identifiers.
+ */
 @SuppressWarnings("unchecked")
 public abstract class EventSourcedRepository<T extends EventSourcedEntity<T> & IdentifiedEntity<K>, K>
-    implements TemporalPersistenceOrientedRepository<T, K>, RuntimeGeneric {
+    implements TemporalRepository<T, K>, PersistenceOrientedRepository<T, K>, RuntimeGeneric {
 
     protected EventStore eventStore;
 
@@ -142,16 +154,6 @@ public abstract class EventSourcedRepository<T extends EventSourcedEntity<T> & I
     @Override
     public long size() {
         return eventStore.size();
-    }
-
-    @Override
-    public Set<T> all() {
-        return eventStore
-            .streamNames()
-            .stream()
-            .map(s -> getByStreamName(s, -1L))
-            .flatMap(s -> s.map(Stream::of).orElse(Stream.empty()))
-            .collect(toSet());
     }
 
     @Override

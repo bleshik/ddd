@@ -4,6 +4,9 @@ import com.mongodb.DBObject;
 import com.mongodb.util.JSON;
 import com.google.gson.Gson;
 
+/**
+ * {@link Gson} based implementation of the mapper.
+ */
 public class GsonMongoDbObjectMapper implements MongoDbObjectMapper {
 
     public final Gson gson;

@@ -55,7 +55,7 @@ public abstract class AbstractEventStoreSpec {
                     int exceptionAmount = 0;
                     while(!success) {
                         try {
-                            eventStore.append("stream", new DummyEvent());
+                            eventStore.append("stream", eventStore.version("stream"), new DummyEvent());
                             success = true;
                         } catch (ConcurrentModificationException e) {
                             ++exceptionAmount;
@@ -71,7 +71,11 @@ public abstract class AbstractEventStoreSpec {
             pool.shutdown();
             try {
                 if (pool.awaitTermination(30000, TimeUnit.MILLISECONDS)) {
-                    assertEquals(eventStore.version("stream"), concurrencyLevel * eventsPerThread);
+                    if (totalExceptionsAmount == 0) {
+                        fail();
+                    } else {
+                        assertEquals(eventStore.version("stream"), concurrencyLevel * eventsPerThread);
+                    }
                 } else {
                     fail();
                 }

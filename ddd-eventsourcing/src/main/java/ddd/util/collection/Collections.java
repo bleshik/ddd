@@ -5,6 +5,9 @@ import java.lang.Iterable;
 import java.util.stream.StreamSupport;
 import java.util.stream.Stream;
 
+/**
+ * Utility collections related methods.
+ */
 public final class Collections {
     private Collections() {}
 

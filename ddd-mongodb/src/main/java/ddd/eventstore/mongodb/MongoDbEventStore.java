@@ -26,6 +26,10 @@ import ddd.util.mongodb.Migration;
 import ddd.util.mongodb.MongoDbObjectMapper;
 import ddd.util.mongodb.GsonMongoDbObjectMapper;
 
+/**
+ * MongoDB-based event store. Stores all streams in a single db collection. The idea is that there a collection per
+ * entity.
+ */
 @SuppressWarnings("unchecked")
 public class MongoDbEventStore implements EventStore {
 
@@ -43,9 +47,6 @@ public class MongoDbEventStore implements EventStore {
             dbCollection.createIndex(new BasicDBObject("occurredOn", 1));
         });
     }
-
-    @Override
-    public void close() {}
 
     @Override
     public Optional<Stream<Event>> streamSince(String streamName, long lastReceivedEvent) {

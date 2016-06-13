@@ -2,6 +2,9 @@ package ddd.repository.eventsourcing;
 
 import ddd.repository.IdentifiedEntity;
 
+/**
+ * {@link EventSourcedEntity} with identifier.
+ */
 public abstract class IdentifiedEventSourcedEntity<T extends EventSourcedEntity<T>, K> extends EventSourcedEntity<T>
     implements IdentifiedEntity<K> {
 

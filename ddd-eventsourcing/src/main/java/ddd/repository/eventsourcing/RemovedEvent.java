@@ -2,15 +2,18 @@ package ddd.repository.eventsourcing;
 
 import ddd.eventstore.Event;
 
+/**
+ * Removing event. This event means, that the object no longer exists.
+ */
 class RemovedEvent<K> extends Event {
 
-  private K id;
+    private K id;
 
-  public RemovedEvent(K id) { 
-		this.id = id;
-  }
+    public RemovedEvent(K id) { 
+        this.id = id;
+    }
 
-  private RemovedEvent() {}
+    private RemovedEvent() {}
 
-  public K getId() { return id; }
+    public K getId() { return id; }
 }

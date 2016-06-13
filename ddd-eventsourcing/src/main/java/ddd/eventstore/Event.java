@@ -6,6 +6,9 @@ import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 import ddd.util.CloneWith;
 
+/**
+ * Base class for all events.
+ */
 public abstract class Event<T extends Event> implements CloneWith<T> {
     protected long occurredOn = -1L;
 

@@ -21,6 +21,10 @@ import ddd.util.mongodb.MongoDbObjectMapper;
 import ddd.util.mongodb.GsonMongoDbObjectMapper;
 import ddd.util.collection.Collections;
 
+/**
+ * MongoDB-based event sourced repository. This stores events and snapshots in the same MongoDB database. Optionally,
+ * you can specify other {@link EventStore}.
+ */
 public abstract class MongoDbEventSourcedRepository<T extends EventSourcedEntity<T> & IdentifiedEntity<K>, K> extends EventSourcedRepository<T, K> {
 
     protected DBCollection snapshots;
