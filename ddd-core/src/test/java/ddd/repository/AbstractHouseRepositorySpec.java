@@ -15,20 +15,20 @@ import static org.junit.Assert.assertFalse;
 
 @RunWith(JUnit4.class)
 @SuppressWarnings("unchecked")
-public abstract class AbstractHouseRepositorySpec {
-    protected final House awesomeHouse;
-    protected final PersistenceOrientedRepository<House, String> houseRepository;
+public abstract class AbstractHouseRepositorySpec<T extends House, R extends PersistenceOrientedRepository<T, String>> {
+    protected final T awesomeHouse;
+    protected final R houseRepository;
 
-    protected AbstractHouseRepositorySpec(PersistenceOrientedRepository<? extends House, String> houseRepository, House awesomeHouse) {
-        this.houseRepository = (PersistenceOrientedRepository<House, String>) houseRepository;
+    protected AbstractHouseRepositorySpec(R houseRepository, T awesomeHouse) {
+        this.houseRepository = houseRepository;
         this.awesomeHouse    = awesomeHouse;
     }
 
     @Test
     public void remove() {
-        TemporalRepository<House, String> temporalHouseRepository = null;
+        TemporalRepository<T, String> temporalHouseRepository = null;
         if (houseRepository instanceof TemporalRepository) {
-            temporalHouseRepository = (TemporalRepository<House, String>) houseRepository;
+            temporalHouseRepository = (TemporalRepository<T, String>) houseRepository;
         }
         if (temporalHouseRepository != null) {
             assertFalse(temporalHouseRepository.contained(awesomeHouse.getAddress()));
@@ -46,15 +46,15 @@ public abstract class AbstractHouseRepositorySpec {
 
     @Test
     public void get() {
-        House house = houseRepository.save(awesomeHouse);
+        T house = houseRepository.save(awesomeHouse);
         assertEquals(1, houseRepository.size());
         assertEquals(house, houseRepository.get(house.getAddress()).get());
 
-        house = house.buy("Stepan Stepanov");
+        house = (T) house.buy("Stepan Stepanov");
         house = houseRepository.save(house);
         assertEquals("Stepan Stepanov", houseRepository.get(house.getAddress()).get().getOwner());
 
-        house = house.destroy();
+        house = (T) house.destroy();
         house = houseRepository.save(house);
         assertTrue(houseRepository.get(house.getAddress()).get().isDestroyed());
         assertEquals("Stepan Stepanov", houseRepository.get(house.getAddress()).get().getOwner());
@@ -62,8 +62,8 @@ public abstract class AbstractHouseRepositorySpec {
 
     @Test(expected = OptimisticLockingException.class)
     public void save() {
-        houseRepository.save(awesomeHouse.destroy());
-        houseRepository.save(awesomeHouse.buy("Stepan Stepanov"));
+        houseRepository.save((T) awesomeHouse.destroy());
+        houseRepository.save((T) awesomeHouse.buy("Stepan Stepanov"));
     }
 
 }

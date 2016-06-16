@@ -5,7 +5,7 @@ import ddd.repository.example.domain.House;
 import ddd.repository.eventsourcing.example.domain.EventSourcedHouse;
 import ddd.repository.AbstractHouseRepositorySpec;
 
-public class MongoDbEventSourcedRepositorySpec extends AbstractHouseRepositorySpec {
+public class MongoDbEventSourcedRepositorySpec extends AbstractHouseRepositorySpec<EventSourcedHouse, MongoDbEventSourcedRepository<EventSourcedHouse, String>> {
     public MongoDbEventSourcedRepositorySpec() {
         super(
                 new MongoDbEventSourcedRepository<EventSourcedHouse, String>(new Fongo("Mongo").getDB("Mongo")){},
