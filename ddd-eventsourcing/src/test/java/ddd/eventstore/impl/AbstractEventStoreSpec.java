@@ -26,6 +26,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 @RunWith(JUnit4.class)
+@SuppressWarnings("unchecked")
 public abstract class AbstractEventStoreSpec {
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private final EventStore eventStore;

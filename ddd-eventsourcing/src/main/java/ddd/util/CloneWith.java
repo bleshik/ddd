@@ -18,6 +18,7 @@ import java.util.function.Function;
  * </code>
  * </pre>
  */
+@SuppressWarnings("unchecked")
 public interface CloneWith<T extends CloneWith> extends Cloneable {
     default T cloneWith(Function<T, ?> mutate) {
         T cloned = CloneWithHelper.<T>invokeClone((T) this);
@@ -26,6 +27,7 @@ public interface CloneWith<T extends CloneWith> extends Cloneable {
     }
 }
 
+@SuppressWarnings("unchecked")
 final class CloneWithHelper {
     private CloneWithHelper() {}
     static final Method cloneMethod;

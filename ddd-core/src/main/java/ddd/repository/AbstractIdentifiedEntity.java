@@ -1,19 +1,14 @@
-package ddd.repository.eventsourcing;
+package ddd.repository;
 
-import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
+import org.apache.commons.lang3.builder.ToStringBuilder;
 import ddd.repository.IdentifiedEntity;
 
-/**
- * {@link EventSourcedEntity} with identifier.
- */
-public abstract class IdentifiedEventSourcedEntity<T extends EventSourcedEntity<T>, K> extends EventSourcedEntity<T>
-    implements IdentifiedEntity<K> {
+public abstract class AbstractIdentifiedEntity<K> implements IdentifiedEntity<K> {
 
     private K id;
 
-    public IdentifiedEventSourcedEntity(K id, InitialEvent<T> initialEvent) {
-        super(initialEvent);
+    public AbstractIdentifiedEntity(K id) {
         this.id = id;
     }
 

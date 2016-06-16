@@ -16,6 +16,6 @@ lazy val commonSettings = Seq(
 
 lazy val core = project.in(file("ddd-core")).settings(commonSettings: _*)
 
-lazy val eventsourcing = project.in(file("ddd-eventsourcing")).dependsOn(core).settings(commonSettings: _*)
+lazy val eventsourcing = project.in(file("ddd-eventsourcing")).dependsOn(core).dependsOn(core % "test->test;compile->compile").settings(commonSettings: _*)
 
 lazy val mongodb = project.in(file("ddd-mongodb")).dependsOn(core).dependsOn(eventsourcing % "test->test;compile->compile").settings(commonSettings: _*)

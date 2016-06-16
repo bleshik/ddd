@@ -2,7 +2,7 @@ package ddd.repository.eventsourcing.example.domain;
 
 import ddd.repository.eventsourcing.InitialEvent;
 
-public class HouseBuilt extends InitialEvent<House> {
+public class HouseBuilt extends InitialEvent<EventSourcedHouse> {
 
     public final String address;
     public final long priceInCents;
@@ -14,5 +14,5 @@ public class HouseBuilt extends InitialEvent<House> {
         this.owner = owner;
     }
 
-    public House initializedObject() { return new House(address, priceInCents, owner); }
+    public EventSourcedHouse initializedObject() { return new EventSourcedHouse(address, priceInCents, owner); }
 }

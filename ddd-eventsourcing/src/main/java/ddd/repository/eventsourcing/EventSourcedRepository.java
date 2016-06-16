@@ -14,6 +14,7 @@ import ddd.eventstore.EventStore;
 import ddd.repository.IdentifiedEntity;
 import ddd.repository.TemporalRepository;
 import ddd.repository.PersistenceOrientedRepository;
+import ddd.repository.exception.OptimisticLockingException;
 
 import static java.util.stream.Collectors.toSet;
 import static java.util.stream.Collectors.toList;
@@ -145,7 +146,7 @@ public abstract class EventSourcedRepository<T extends EventSourcedEntity<T> & I
                     }
                     return save(freshEntity);
                 } catch (EventSourcingException esException) {
-                    throw new EventSourcingConflictException("Couldn't resolve the conflict", esException);
+                    throw new OptimisticLockingException("Couldn't resolve the conflict", esException);
                 }
             }
         }
