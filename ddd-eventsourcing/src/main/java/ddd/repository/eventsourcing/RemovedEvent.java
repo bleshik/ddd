@@ -1,6 +1,6 @@
 package ddd.repository.eventsourcing;
 
-import ddd.eventstore.Event;
+import eventstore.Event;
 
 /**
  * Removing event. This event means, that the object no longer exists.

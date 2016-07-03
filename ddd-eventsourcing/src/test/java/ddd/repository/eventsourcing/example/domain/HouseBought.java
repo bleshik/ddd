@@ -1,6 +1,6 @@
 package ddd.repository.eventsourcing.example.domain;
 
-import ddd.eventstore.Event;
+import eventstore.Event;
 
 public class HouseBought extends Event {
 	public final String newOwner;

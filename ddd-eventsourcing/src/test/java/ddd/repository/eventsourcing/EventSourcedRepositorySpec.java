@@ -1,6 +1,6 @@
 package ddd.repository.eventsourcing;
 
-import ddd.eventstore.impl.InMemoryEventStore;
+import eventstore.impl.InMemoryEventStore;
 import ddd.repository.AbstractHouseRepositorySpec;
 import ddd.repository.eventsourcing.example.domain.EventSourcedHouse;
 import ddd.repository.AbstractHouseRepositorySpec;

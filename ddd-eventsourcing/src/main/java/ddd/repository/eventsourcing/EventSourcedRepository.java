@@ -8,9 +8,9 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.ParameterizedType;
 import java.util.ConcurrentModificationException;
 
-import ddd.util.RuntimeGeneric;
-import ddd.eventstore.Event;
-import ddd.eventstore.EventStore;
+import eventstore.util.RuntimeGeneric;
+import eventstore.Event;
+import eventstore.EventStore;
 import ddd.repository.IdentifiedEntity;
 import ddd.repository.TemporalRepository;
 import ddd.repository.PersistenceOrientedRepository;

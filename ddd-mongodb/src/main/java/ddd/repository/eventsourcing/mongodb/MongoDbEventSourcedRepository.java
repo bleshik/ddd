@@ -3,7 +3,7 @@ package ddd.repository.eventsourcing.mongodb;
 import java.util.Iterator;
 import com.mongodb.MongoCommandException;
 import java.util.stream.Stream;
-import ddd.eventstore.EventStore;
+import eventstore.EventStore;
 import java.util.stream.StreamSupport;
 import java.util.Optional;
 import java.lang.reflect.Field;
@@ -15,11 +15,11 @@ import com.mongodb.DuplicateKeyException;
 import ddd.repository.IdentifiedEntity;
 import ddd.repository.eventsourcing.EventSourcedRepository;
 import ddd.repository.eventsourcing.EventSourcedEntity;
-import ddd.eventstore.mongodb.MongoDbEventStore;
-import ddd.util.mongodb.Migration;
-import ddd.util.mongodb.MongoDbObjectMapper;
-import ddd.util.mongodb.GsonMongoDbObjectMapper;
-import ddd.util.collection.Collections;
+import eventstore.mongodb.MongoDbEventStore;
+import eventstore.util.mongodb.Migration;
+import eventstore.util.mongodb.MongoDbObjectMapper;
+import eventstore.util.mongodb.GsonMongoDbObjectMapper;
+import eventstore.util.collection.Collections;
 
 /**
  * MongoDB-based event sourced repository. This stores events and snapshots in the same MongoDB database. Optionally,

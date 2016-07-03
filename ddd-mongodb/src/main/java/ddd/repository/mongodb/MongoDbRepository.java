@@ -1,14 +1,14 @@
 package ddd.repository.mongodb;
 
 import ddd.repository.exception.OptimisticLockingException;
-import ddd.util.RuntimeGeneric;
+import eventstore.util.RuntimeGeneric;
 import ddd.repository.PersistenceOrientedRepository;
 import java.util.Map;
 import java.util.WeakHashMap;
 import java.util.Iterator;
 import com.mongodb.MongoCommandException;
 import java.util.stream.Stream;
-import ddd.eventstore.EventStore;
+import eventstore.EventStore;
 import java.util.stream.StreamSupport;
 import java.util.Optional;
 import java.lang.reflect.Field;
@@ -20,11 +20,11 @@ import com.mongodb.DuplicateKeyException;
 import ddd.repository.IdentifiedEntity;
 import ddd.repository.eventsourcing.EventSourcedRepository;
 import ddd.repository.eventsourcing.EventSourcedEntity;
-import ddd.eventstore.mongodb.MongoDbEventStore;
-import ddd.util.mongodb.Migration;
-import ddd.util.mongodb.MongoDbObjectMapper;
-import ddd.util.mongodb.GsonMongoDbObjectMapper;
-import ddd.util.collection.Collections;
+import eventstore.mongodb.MongoDbEventStore;
+import eventstore.util.mongodb.Migration;
+import eventstore.util.mongodb.MongoDbObjectMapper;
+import eventstore.util.mongodb.GsonMongoDbObjectMapper;
+import eventstore.util.collection.Collections;
 
 /**
  * Simple MongoDB based repository. It just does the POJO mapping and puts it into the DB.

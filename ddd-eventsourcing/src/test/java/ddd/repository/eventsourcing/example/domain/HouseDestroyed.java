@@ -1,5 +1,5 @@
 package ddd.repository.eventsourcing.example.domain;
 
-import ddd.eventstore.Event;
+import eventstore.Event;
 
 public class HouseDestroyed extends Event {}

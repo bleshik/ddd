@@ -6,6 +6,7 @@ lazy val commonDependencies = Seq(
   libraryDependencies += "org.slf4j" % "slf4j-api" % "1.7.21",
   libraryDependencies += "org.slf4j" % "slf4j-simple" % "1.7.21",
   libraryDependencies += "org.slf4j" % "log4j-over-slf4j" % "1.7.21",
+libraryDependencies += "org.apache.commons" % "commons-lang3" % "3.4",
   libraryDependencies += "com.novocode" % "junit-interface" % "0.11" % "test",
   libraryDependencies += "junit" % "junit" % "4.12" % "test"
 )
@@ -21,10 +22,28 @@ lazy val commonSettings = Seq(
   }
 ) ++ commonDependencies
 
-lazy val core = project.in(file("ddd-core")).settings(commonSettings: _*)
+lazy val core = project.in(file("ddd-api")).settings(commonSettings: _*)
 
-lazy val eventsourcing = project.in(file("ddd-eventsourcing")).dependsOn(core).dependsOn(core % "test->test;compile->compile").settings(commonSettings: _*)
+lazy val eventstore = project.in(file("eventstore-api")).settings(commonSettings: _*)
 
-lazy val mongodb = project.in(file("ddd-mongodb")).dependsOn(core).dependsOn(eventsourcing % "test->test;compile->compile").settings(commonSettings: _*)
+lazy val eventstoreMongodb = project.in(file("eventstore-mongodb"))
+  .dependsOn(core)
+  .dependsOn(eventstore % "test->test;compile->compile")
+  .settings(commonSettings: _*)
 
-lazy val kafka = project.in(file("ddd-kafka")).dependsOn(core).dependsOn(eventsourcing % "test->test;compile->compile").settings(commonSettings: _*)
+lazy val eventstoreKafka = project.in(file("eventstore-kafka"))
+  .dependsOn(core)
+  .dependsOn(eventstore % "test->test;compile->compile")
+  .settings(commonSettings: _*)
+
+lazy val eventsourcing = project.in(file("ddd-eventsourcing"))
+  .dependsOn(core % "test->test;compile->compile")
+  .dependsOn(eventstore)
+  .settings(commonSettings: _*)
+
+lazy val mongodb = project.in(file("ddd-mongodb"))
+  .dependsOn(core)
+  .dependsOn(eventstoreMongodb)
+  .dependsOn(eventsourcing % "test->test;compile->compile")
+  .settings(commonSettings: _*)
+
