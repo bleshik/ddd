@@ -41,7 +41,7 @@ public abstract class MongoDbRepository<T extends IdentifiedEntity<K>, K> implem
     }
 
     public MongoDbRepository(DB db, MongoDbObjectMapper mapper) {
-        init(db.getCollection(((Class<T>) getTypeArgument(0)).getSimpleName()), mapper);
+        init(db.getCollection(((Class<T>) getClassArgument(0)).getSimpleName()), mapper);
     }
 
     public MongoDbRepository(DB db) {
@@ -51,7 +51,7 @@ public abstract class MongoDbRepository<T extends IdentifiedEntity<K>, K> implem
     protected void init(DBCollection entityCollection, MongoDbObjectMapper mapper) {
         this.entityCollection = entityCollection;
         this.mapper           = mapper;
-        this.entityClass      = (Class<T>) getTypeArgument(0);
+        this.entityClass      = (Class<T>) getClassArgument(0);
 
         Migration.migrate(() -> {
             entityCollection.createIndex(new BasicDBObject("id", 1), new BasicDBObject("unique", true));

@@ -1,16 +1,16 @@
 package ddd.eventstore;
 
-import java.util.ConcurrentModificationException;
-import java.util.stream.Stream;
 import java.util.Collections;
-import java.util.Optional;
+import java.util.ConcurrentModificationException;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Stream;
 
 /**
  * Storage for events. It consists of event streams, you can create a stream by simply appending events to it.
  */
-public interface EventStore {
+public interface EventStore extends AutoCloseable {
     /**
      * Returns an {@link Optional} describing the event stream after the specified event number,
      * or an empty {@code Optional} if the stream does not exists.
@@ -28,7 +28,6 @@ public interface EventStore {
      * or an empty {@code Optional} if the stream does not exists.
      */
     default Optional<Stream<Event>> stream(String streamName) { return streamSince(streamName, 0); }
-
     /**
      * Atomically appends new events, checking the current version the caller passed. If the caller's version != the
      * actual stream version, {@link ConcurrentModificationException} will be thrown.
@@ -51,7 +50,6 @@ public interface EventStore {
             } catch (ConcurrentModificationException e) { /*ignore*/ }
         }
     }
-
     /**
      * Atomically appends a new event, checking the current version the caller passed. If the caller's version != the
      * actual stream version, {@link ConcurrentModificationException} will be thrown.
@@ -66,15 +64,7 @@ public interface EventStore {
      * @param streamName name of the stream is to be appended to
      * @param event event is to be appended
      */
-    default void append(String streamName, Event event) {
-        while (true) {
-            try {
-                append(streamName, version(streamName), event);
-                break;
-            } catch (ConcurrentModificationException e) { /*ignore*/ }
-        }
-    }
-
+    default void append(String streamName, Event event) { append(streamName, Collections.singletonList(event)); }
     /**
      * Returns the current stream version/event number/size.
      * @param streamName name of the stream whose version is to be retrieved
@@ -89,11 +79,9 @@ public interface EventStore {
      * Returns the number of streams in this event store.
      * @return the number of streams in this event store 
      */
-    default long size() { return streamNames().size(); }
+    long size();
     /**
-     * Returns names of all streams in this event store.
-     * @return names of all streams in this event store.
+     * Frees all the store's resources.
      */
-    Set<String> streamNames();
-
+    default void close() {}
 }

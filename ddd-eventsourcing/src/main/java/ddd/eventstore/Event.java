@@ -11,21 +11,33 @@ import ddd.util.CloneWith;
  */
 public abstract class Event<T extends Event> implements CloneWith<T> {
     protected long occurredOn = -1L;
+    protected long streamVersion = -1L;
 
     public long getOccurredOn() { return occurredOn; }
 
-    public T occurred() {
-        return cloneWith(e -> e.occurredOn = System.currentTimeMillis());
+    public long getStreamVersion() { return streamVersion; }
+
+    /**
+     * Return same event, but with the version of the corresponding stream set.
+     * This method is intended to be used by the event store implementations.
+     * @param streamVersion version of the corresponding event stream 
+     * @return same event, but with the version of the corresponding stream set
+     */
+    public T occurred(long streamVersion) {
+        return cloneWith(e -> {
+            e.occurredOn    = System.currentTimeMillis();
+            e.streamVersion = streamVersion;
+        });
     }
 
     @Override
     public int hashCode() {
-        return HashCodeBuilder.reflectionHashCode(this, "occurredOn");
+        return HashCodeBuilder.reflectionHashCode(this, "occurredOn", "streamVersion");
     }
 
     @Override
     public boolean equals(Object obj) {
-        return EqualsBuilder.reflectionEquals(this, obj, "occurredOn");
+        return EqualsBuilder.reflectionEquals(this, obj, "occurredOn", "streamVersion");
     }
 
     @Override

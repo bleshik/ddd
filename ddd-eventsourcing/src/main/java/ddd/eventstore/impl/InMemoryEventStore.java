@@ -20,47 +20,59 @@ import static java.util.stream.Collectors.toList;
  */
 public class InMemoryEventStore implements EventStore {
 
-  private ConcurrentMap<String, List<Event>> streams = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, List<Event>> streams;
 
-  @Override
-  public Optional<Stream<Event>> streamSince(String streamName, long lastReceivedEvent) {
-    List<Event> allEvents = Optional.ofNullable(streams.get(streamName)).orElse(Collections.emptyList());
-    if (lastReceivedEvent > allEvents.size()) {
-      throw new IllegalArgumentException("Invalid version " + 
-          lastReceivedEvent + " of stream " + streamName + "  " +
-          allEvents
-      );
+    public InMemoryEventStore() {
+        this(new ConcurrentHashMap<>());
     }
-    if (!allEvents.iterator().hasNext()) {
-      return Optional.empty();
-    } else {
-      List<Event> newEvents = lastReceivedEvent >= 0 && lastReceivedEvent <= allEvents.size() ?
-        allEvents.subList((int) lastReceivedEvent, allEvents.size()) :
-        allEvents;
-      return Optional.of(newEvents.stream());
+
+    public InMemoryEventStore(ConcurrentMap<String, List<Event>> streams) {
+        this.streams = streams;
     }
-  }
 
-  @Override
-  public void append(String streamName, long currentVersion, List<? extends Event> newEvents) {
-    // one global lock is enough for tests
-    synchronized(streams) {
-      List<Event> curEvents = Optional.ofNullable(streams.get(streamName)).orElse(Collections.emptyList());
-      if (version(streamName) != currentVersion) {
-        throw new ConcurrentModificationException();
-      }
-      streams.put(streamName, new ArrayList<Event>() {{
-          addAll(curEvents);
-          addAll(newEvents.stream().map(e -> e.occurred()).collect(toList()));
-      }});
+    @Override
+    public Optional<Stream<Event>> streamSince(String streamName, long lastReceivedEvent) {
+        List<Event> allEvents = Optional.ofNullable(streams.get(streamName)).orElse(Collections.emptyList());
+        if (lastReceivedEvent > allEvents.size()) {
+            throw new IllegalArgumentException("Invalid version " + 
+                    lastReceivedEvent + " of stream " + streamName + "  " +
+                    allEvents
+                    );
+        }
+        if (!allEvents.iterator().hasNext()) {
+            return Optional.empty();
+        } else {
+            List<Event> newEvents = lastReceivedEvent >= 0 && lastReceivedEvent <= allEvents.size() ?
+                allEvents.subList((int) lastReceivedEvent, allEvents.size()) :
+                allEvents;
+            return Optional.of(newEvents.stream());
+        }
     }
-  }
 
-  @Override
-  public Set<String> streamNames() { return streams.keySet(); }
+    @Override
+    public void append(String streamName, long currentVersion, List<? extends Event> newEvents) {
+        // one global lock is enough for tests
+        synchronized(streams) {
+            List<Event> curEvents = Optional.ofNullable(streams.get(streamName)).orElse(Collections.emptyList());
+            if (version(streamName) != currentVersion) {
+                throw new ConcurrentModificationException();
+            }
+            streams.put(streamName, new ArrayList<Event>() {{
+                addAll(curEvents);
+                for (int i = 0, n = newEvents.size(); i < n; ++i) {
+                    add(newEvents.get(i).occurred(currentVersion + i + 1));
+                }
+            }});
+        }
+    }
 
-  @Override
-  public long version(String streamName) {
-    return Optional.ofNullable(streams.get(streamName)).map((s) -> (long) s.size()).orElse(0L);
-  }
+    @Override
+    public long size() {
+        return streams.size();
+    }
+
+    @Override
+    public long version(String streamName) {
+        return Optional.ofNullable(streams.get(streamName)).map((s) -> (long) s.size()).orElse(0L);
+    }
 }

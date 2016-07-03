@@ -71,6 +71,7 @@ public class MongoDbEventStore implements EventStore {
     private DBObject serialize(Event event) {
         DBObject obj = mapper.mapToDbObject(event);
         obj.put("_type", event.getClass().getCanonicalName());
+        obj.put("streamVersion", event.getStreamVersion());
         obj.put("occurredOn", System.currentTimeMillis());
         return obj;
     }
@@ -81,8 +82,8 @@ public class MongoDbEventStore implements EventStore {
             BulkWriteOperation operation = dbCollection.initializeOrderedBulkOperation();
             long nextEventIndex = currentVersion;
             for (Event event : newEvents) {
-                DBObject dbObject = serialize(event);
-                dbObject.put("_id", new BasicDBObject("_idx", ++nextEventIndex).append("_streamId", streamName));
+                DBObject dbObject = serialize(event.occurred(++nextEventIndex));
+                dbObject.put("_id", new BasicDBObject("_idx", dbObject.get("streamVersion")).append("_streamId", streamName));
                 operation.insert(dbObject);
             };
             operation.execute();
@@ -98,8 +99,11 @@ public class MongoDbEventStore implements EventStore {
     }
 
     @Override
-    public Set<String> streamNames() {
-        return new HashSet<String>((List<String>) dbCollection.distinct("_id._streamId"));
+    public long size() {
+        return Collections.stream(dbCollection.aggregate(new ArrayList<DBObject>(){{
+            add(new BasicDBObject("$group", new BasicDBObject("_id", "$_id._streamId")));
+            add(new BasicDBObject("$group", new BasicDBObject("_id", 1).append("count", new BasicDBObject("$sum", 1L))));
+        }}).results()).map(e -> (long) e.get("count")).findAny().orElse(0L);
     }
 
     @Override

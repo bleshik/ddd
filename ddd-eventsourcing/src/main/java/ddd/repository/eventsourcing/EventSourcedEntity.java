@@ -89,9 +89,10 @@ public abstract class EventSourcedEntity<T extends EventSourcedEntity<T>> implem
      * @return the entity with the applied changes
      */
     public T apply(Event event) {
-        EventSourcedEntity mutatedEntity = mutate(event);
-        mutatedEntity._mutatingChanges = new ArrayList<Event>(_mutatingChanges.size() + 1) {{ addAll(_mutatingChanges); add(event); }};
-        mutatedEntity._version = this._version + 1;
+        Event occurredEvent = event.occurred(getMutatedVersion() + 1);
+        EventSourcedEntity mutatedEntity = mutate(occurredEvent);
+        mutatedEntity._mutatingChanges = new ArrayList<Event>(_mutatingChanges.size() + 1) {{ addAll(_mutatingChanges); add(occurredEvent); }};
+        mutatedEntity._version = occurredEvent.getStreamVersion();
         mutatedEntity._committedVersion = this._committedVersion;
         mutatedEntity._updateDate = System.currentTimeMillis();
         return (T) mutatedEntity;
@@ -105,7 +106,7 @@ public abstract class EventSourcedEntity<T extends EventSourcedEntity<T>> implem
     /**
      * @return version NOT including the unsaved changes, i.e. version of the saved entity
      */
-    public long getUnmutatedVersion() { return _version - getChanges().size(); }
+    public long getUnmutatedVersion() { return _committedVersion; }
 
     /**
      * @return timestamp of the last change of the entity

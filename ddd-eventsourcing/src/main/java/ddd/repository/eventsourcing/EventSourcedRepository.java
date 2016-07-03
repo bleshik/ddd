@@ -43,7 +43,7 @@ public abstract class EventSourcedRepository<T extends EventSourcedEntity<T> & I
     }
 
     private Class<T> _entityClass;
-    public Class<T> entityClass() { return _entityClass != null ? _entityClass : (_entityClass = (Class<T>) getTypeArgument(0)); }
+    public Class<T> entityClass() { return _entityClass != null ? _entityClass : (_entityClass = (Class<T>) getClassArgument(0)); }
 
     @Override
     public Optional<T> get(K id) {

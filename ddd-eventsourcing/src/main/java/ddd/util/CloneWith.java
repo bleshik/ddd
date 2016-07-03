@@ -1,8 +1,8 @@
 package ddd.util;
 
+import java.util.function.Consumer;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.function.Function;
 
 /**
  * A handy interface adding a Scala-like "copy" method. For example:
@@ -20,9 +20,9 @@ import java.util.function.Function;
  */
 @SuppressWarnings("unchecked")
 public interface CloneWith<T extends CloneWith> extends Cloneable {
-    default T cloneWith(Function<T, ?> mutate) {
+    default T cloneWith(Consumer<T> mutate) {
         T cloned = CloneWithHelper.<T>invokeClone((T) this);
-        mutate.apply(cloned);
+        mutate.accept(cloned);
         return cloned;
     }
 }
