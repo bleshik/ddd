@@ -323,6 +323,8 @@ public class KafkaEventStore implements EventStore {
                         throw new ConcurrentModificationException();
                     }
                 }
+                // we should send the event before releasing the lock
+                producer.flush();
             } finally {
                 // release the locks
                 if (lock.isPresent()) {
