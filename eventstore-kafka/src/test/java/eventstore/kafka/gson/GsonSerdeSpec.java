@@ -1,6 +1,8 @@
 package eventstore.kafka.gson;
 
+import com.google.gson.reflect.TypeToken;
 import eventstore.Event;
+import eventstore.PayloadEvent;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -15,15 +17,7 @@ public class GsonSerdeSpec {
 
     @Test
     public void append() {
-        final DummyEvent event = new DummyEvent(42);
+        final PayloadEvent event = new PayloadEvent(42);
         assertEquals(event, serde.deserializer().deserialize("Test", serde.serializer().serialize("Test", event)));
-    }
-}
-
-class DummyEvent extends Event {
-    final long payload;
-
-    DummyEvent(long payload) { 
-		this.payload = payload;
     }
 }

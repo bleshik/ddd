@@ -112,7 +112,7 @@ public abstract class MongoDbRepository<T extends IdentifiedEntity<K>, K> implem
         if (dbObject == null) {
             return null;
         }
-        return mapper.mapToObject(dbObject, entityClass);
+        return (T) mapper.mapToObject(dbObject);
     }
 
     protected void migrate() {}

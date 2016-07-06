@@ -11,8 +11,10 @@ import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
+import eventstore.PayloadEvent;
 import eventstore.util.RuntimeGeneric;
 import java.lang.ClassNotFoundException;
+import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
@@ -24,8 +26,7 @@ import org.apache.kafka.common.serialization.Serializer;
 public class GsonSerde<T> implements Serde<T>, RuntimeGeneric {
 
     private final Type typeOfT = getTypeArgument(0);
-    private final Gson gson = new GsonBuilder().registerTypeHierarchyAdapter(getClassArgument(0), new TypingGsonSerde<T>()).create();
-    private final JsonParser parser = new JsonParser();
+    private final Gson gson = new GsonBuilder().registerTypeHierarchyAdapter(getClassArgument(0), new TypingGsonSerde()).create();
 
     @Override
     public void configure(Map<String, ?> configs, boolean isKey) {}
@@ -42,6 +43,7 @@ public class GsonSerde<T> implements Serde<T>, RuntimeGeneric {
 
             @Override
             public byte[] serialize(String topic, T data) {
+                System.out.println(gson.toJson(data));
                 return gson.toJson(data).getBytes(StandardCharsets.UTF_8);
             }
 
@@ -72,35 +74,50 @@ public class GsonSerde<T> implements Serde<T>, RuntimeGeneric {
     }
 
 }
-class TypingGsonSerde<T> implements JsonSerializer<T>, JsonDeserializer<T> {
+class TypingGsonSerde implements JsonSerializer, JsonDeserializer {
     private final Gson gson = new Gson();
+    private final Field payloadField;
 
-    @Override
-    public T deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context)
-    throws JsonParseException {
-        JsonObject obj = (JsonObject) json;
-        JsonObject data = obj.get("wrapper") != null ? obj.getAsJsonObject("data") : obj;
+    public TypingGsonSerde() {
         try {
-            return gson.fromJson(data, (Class<T>) Class.forName(obj.get("type").getAsString()));
-        } catch (ClassNotFoundException e) {
-            throw new JsonParseException(e);
+            payloadField = PayloadEvent.class.getDeclaredField("payload");
+            payloadField.setAccessible(true);
+        } catch (NoSuchFieldException ex) {
+            throw new AssertionError("This shouldn't happen");
         }
     }
 
     @Override
-    public JsonElement serialize(T data, Type typeOfSrc, JsonSerializationContext serContext) {
-        String type = data.getClass().getCanonicalName();
-        JsonElement dataElement = gson.toJsonTree(data);
-        if (dataElement instanceof JsonObject) {
-            ((JsonObject) dataElement).add("type", new JsonPrimitive(type));
-            return dataElement;
-        } else {
-            JsonObject wrapper =  new JsonObject();
-            wrapper.add("wrapper", new JsonPrimitive(true));
-            wrapper.add("data", dataElement);
-            wrapper.add("type", new JsonPrimitive(type));
-            return wrapper;
+    public Object deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context)
+    throws JsonParseException {
+        if (json instanceof JsonObject) {
+            JsonObject data = (JsonObject) json;
+            try {
+                Object obj = gson.fromJson(data, Class.forName(data.get("type").getAsString()));
+                if (obj instanceof PayloadEvent) {
+                    payloadField.set(obj, gson.fromJson(data.get("payload"), Class.forName(data.get("payloadType").getAsString())));
+                }
+                return obj;
+            } catch (ClassNotFoundException|IllegalAccessException e) {
+                throw new JsonParseException(e);
+            }
         }
+        return gson.fromJson(json, typeOfT);
     }
 
+    @Override
+    public JsonElement serialize(Object data, Type typeOfSrc, JsonSerializationContext serContext) {
+        JsonElement dataElement = gson.toJsonTree(data);
+        String type = data.getClass().getCanonicalName();
+        if (dataElement instanceof JsonObject) {
+            dataElement.getAsJsonObject().add("type", new JsonPrimitive(type));
+            if (data instanceof PayloadEvent) {
+                dataElement.getAsJsonObject().add(
+                        "payloadType",
+                        new JsonPrimitive(((PayloadEvent) data).payload.getClass().getCanonicalName())
+                );
+            }
+        }
+        return dataElement;
+    }
 }

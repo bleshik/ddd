@@ -8,16 +8,14 @@ import com.mongodb.DBObject;
 public interface MongoDbObjectMapper {
     /**
      * Maps from {@link DBObject} to a POJO of the given class.
-     * @param T type of the object to convert to
      * @param mongoObject a mongo object is to be converted to the given type
      */
-    <T> T mapToObject(DBObject mongoObject, Class<T> c);
+    Object mapToObject(DBObject mongoObject);
 
     /**
      * Maps to {@link DBObject} from a POJO.
-     * @param T type of the object to convert from
      * @param obj an object is to be converted to {@link DBObject}
      */
-    <T> DBObject mapToDbObject(T obj);
+    DBObject mapToDbObject(Object obj);
 
 }

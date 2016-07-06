@@ -90,7 +90,7 @@ public abstract class MongoDbEventSourcedRepository<T extends EventSourcedEntity
             if (dbObject == null) {
                 return null;
             }
-            T entity = mapper.mapToObject(dbObject, entityClass());
+            T entity = (T) mapper.mapToObject(dbObject);
 
             if (dbObject.get("_version") != null) {
                 Field versionField = EventSourcedEntity.class.getDeclaredField("_version");

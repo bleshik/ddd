@@ -56,15 +56,7 @@ public class MongoDbEventStore implements EventStore {
         if (!cursor.hasNext()) {
             return Optional.empty();
         } else {
-            return Optional.of(Collections.stream(cursor).map(mongoObject -> deserialize(mongoObject)));
-        }
-    }
-
-    private Event deserialize(DBObject mongoObject) {
-        try {
-            return (Event) mapper.mapToObject(mongoObject, (Class<? extends Event>) Class.forName(mongoObject.get("_type").toString()));
-        } catch(ClassNotFoundException e) {
-            throw new EventStoreException(String.format("Failed to deserialize %s", mongoObject), e);
+            return Optional.of(Collections.stream(cursor).map(mongoObject -> (Event) mapper.mapToObject(mongoObject)));
         }
     }
 
