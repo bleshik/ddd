@@ -114,7 +114,10 @@ public abstract class EventSourcedRepository<T extends EventSourcedEntity<T> & I
                     if (newEvent != null) {
                         mutatedEntity = mutatedEntity.apply(newEvent);
                     }
-                    while(changesIterator.hasNext()) { mutatedEntity = mutatedEntity.apply(changesIterator.next()); }
+                    while(changesIterator.hasNext()) {
+                        Event anotherNewEvent = changesIterator.next();
+                        mutatedEntity = mutatedEntity.apply(anotherNewEvent);
+                    }
                     return mutatedEntity;
                 });
             });

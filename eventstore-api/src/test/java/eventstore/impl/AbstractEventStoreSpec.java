@@ -48,7 +48,7 @@ public abstract class AbstractEventStoreSpec {
         this(Collections.singletonList(eventStoreSupplier));
     }
 
-    //@Test
+    @Test
     public void threadSafe() throws Exception {
         currentTest.set(name.getMethodName());
         for (Supplier<? extends EventStore> eventStoreSupplier : eventStoreSuppliers) {
@@ -72,7 +72,7 @@ public abstract class AbstractEventStoreSpec {
         });
     }
 
-    //@Test
+    @Test
     public void size() throws Exception {
         currentTest.set(name.getMethodName());
         eventStoreSuppliers.forEach((eventStoreSupplier) -> {

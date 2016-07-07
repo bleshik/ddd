@@ -477,7 +477,7 @@ public class KafkaEventStore implements EventStore {
                 Collections.stream(it).filter((e) ->
                     e.key().equals(streamName) && e.value().getStreamVersion() - 1 == e.offset()
                 ).map((e) -> e.value())
-        ) : Optional.empty();
+        ) : (version(streamName) > 0 ? Optional.of(Stream.empty()) : Optional.empty());
     }
 
     @Override

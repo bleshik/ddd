@@ -1,18 +1,19 @@
 package ddd.repository.eventsourcing;
 
-import java.util.Arrays;
-import java.util.stream.Stream;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.Collections;
-import java.util.List;
-import java.util.ArrayList;
+import eventstore.Event;
+import eventstore.PayloadEvent;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.function.Function;
-
-import eventstore.Event;
+import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
@@ -56,15 +57,12 @@ public abstract class EventSourcedEntity<T extends EventSourcedEntity<T>> implem
     private long _version = 1;
     private long _updateDate = System.currentTimeMillis();
     private long _committedVersion = 0;
-    private static ConcurrentMap<Class<? extends EventSourcedEntity>, Map<Class<? extends Event>, Method>> mutatingMethods =
-        new ConcurrentHashMap<>();
-
-    protected EventSourcedEntity(InitialEvent<T> initialEvent) {
-        _mutatingChanges.add(initialEvent);
-        // cache the when methods
-        mutatingMethods.computeIfAbsent(this.getClass(), (c) -> {
+    private static final ClassValue<Map<Class<? extends Event>, Method>> mutatingMethods =
+        new ClassValue<Map<Class<? extends Event>, Method>>() {
+        @Override
+        protected Map<Class<? extends Event>, Method> computeValue(Class<?> type) {
             Stream<Method> whenMethods = Stream.empty();
-            Class<?> curClass = c;
+            Class<?> curClass = type;
             while(curClass != Object.class) {
                 whenMethods = Stream.concat(
                     whenMethods,
@@ -72,7 +70,10 @@ public abstract class EventSourcedEntity<T extends EventSourcedEntity<T>> implem
                         curClass.getDeclaredMethods()
                     ).stream().filter(m ->
                         m.getName().equals("when") && (m.getParameterTypes().length == 1 || m.getParameterTypes().length == 2)
-                    )
+                    ).map(m -> {
+                        m.setAccessible(true);
+                        return m;
+                    })
                 );
                 curClass = curClass.getSuperclass();
             }
@@ -81,7 +82,11 @@ public abstract class EventSourcedEntity<T extends EventSourcedEntity<T>> implem
                     collectingAndThen(toList(), (list) -> list.get(0))
                 )
             );
-        });
+        }
+    };
+
+    protected EventSourcedEntity(InitialEvent<T> initialEvent) {
+        _mutatingChanges.add(initialEvent);
     }
 
     /**
@@ -89,12 +94,34 @@ public abstract class EventSourcedEntity<T extends EventSourcedEntity<T>> implem
      * @return the entity with the applied changes
      */
     public T apply(Event event) {
-        Event occurredEvent = event.occurred(getMutatedVersion() + 1);
-        EventSourcedEntity mutatedEntity = mutate(occurredEvent);
-        mutatedEntity._mutatingChanges = new ArrayList<Event>(_mutatingChanges.size() + 1) {{ addAll(_mutatingChanges); add(occurredEvent); }};
-        mutatedEntity._version = occurredEvent.getStreamVersion();
+        return getMutatingMethod(event.getClass())
+            .map((e) -> {
+                Event occurredEvent = event.occurred(getMutatedVersion() + 1);
+                return appendEvent(mutate(occurredEvent), occurredEvent);
+            })
+            .orElseGet(() -> {
+                if (event instanceof PayloadEvent) {
+                    PayloadEvent occurredEvent = (PayloadEvent) event.occurred(getMutatedVersion() + 1);
+                    return appendEvent(mutate(occurredEvent.payload), occurredEvent);
+                } else {
+                    return (T) this;
+                }
+            });
+    }
+
+    /**
+     * Applies the POJO event changes.
+     * @return the entity with the applied changes
+     */
+    public T apply(Object event) {
+        return apply(new PayloadEvent(event));
+    }
+
+    private T appendEvent(EventSourcedEntity mutatedEntity, Event event) {
+        mutatedEntity._mutatingChanges  = new ArrayList<Event>(_mutatingChanges.size() + 1) {{ addAll(_mutatingChanges); add(event); }};
+        mutatedEntity._version          = event.getStreamVersion();
         mutatedEntity._committedVersion = this._committedVersion;
-        mutatedEntity._updateDate = System.currentTimeMillis();
+        mutatedEntity._updateDate       = System.currentTimeMillis();
         return (T) mutatedEntity;
     }
 
@@ -120,17 +147,16 @@ public abstract class EventSourcedEntity<T extends EventSourcedEntity<T>> implem
         return Collections.unmodifiableList(_mutatingChanges);
     }
 
-    private T mutate(Event event) {
+    private T mutate(Object event) {
         if (event == null) {
             return (T) this;
         }
-        Method when = mutatingMethods.get(this.getClass()).get(event.getClass());
-        if (when == null) {
-            return (T) this;
-        }
-        when.setAccessible(true);
-        return doMutate(when, event);
+        return getMutatingMethod(event.getClass()).map((when) -> doMutate(when, event)).orElse((T) this);
     }
+
+    private Optional<Method> getMutatingMethod(Class eventClass) {
+        return Optional.ofNullable(mutatingMethods.get(this.getClass()).get(eventClass));
+    } 
 
     T commitChanges() {
         try {
@@ -144,7 +170,7 @@ public abstract class EventSourcedEntity<T extends EventSourcedEntity<T>> implem
         }
     }
 
-    private T doMutate(Method when, Event event) {
+    private T doMutate(Method when, Object event) {
         try {
             if (when.getParameterTypes().length == 1) {
                 return (T) when.invoke(this, event);

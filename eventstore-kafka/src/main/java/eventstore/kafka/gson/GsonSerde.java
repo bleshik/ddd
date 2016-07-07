@@ -43,7 +43,6 @@ public class GsonSerde<T> implements Serde<T>, RuntimeGeneric {
 
             @Override
             public byte[] serialize(String topic, T data) {
-                System.out.println(gson.toJson(data));
                 return gson.toJson(data).getBytes(StandardCharsets.UTF_8);
             }
 
