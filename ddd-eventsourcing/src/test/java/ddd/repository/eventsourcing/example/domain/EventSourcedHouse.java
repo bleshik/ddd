@@ -14,6 +14,10 @@ public class EventSourcedHouse extends IdentifiedEventSourcedEntity<EventSourced
         this(address, priceInCents, owner, false);
     }
 
+    public EventSourcedHouse(HouseBuilt houseBuilt) {
+        this(houseBuilt.address, houseBuilt.priceInCents, houseBuilt.owner, false);
+    }
+
     private EventSourcedHouse(String address, long priceInCents, String owner, boolean destroyed) { 
         super(address, new HouseBuilt(address, priceInCents, owner));
         this.address      = address;

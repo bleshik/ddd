@@ -1,20 +1,22 @@
 package ddd.repository.eventsourcing;
 
-import java.util.Iterator;
-import java.util.stream.Stream;
-import java.util.Set;
-import java.util.Optional;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.ParameterizedType;
-import java.util.ConcurrentModificationException;
-
-import eventstore.util.RuntimeGeneric;
+import ddd.repository.IdentifiedEntity;
+import ddd.repository.PersistenceOrientedRepository;
+import ddd.repository.TemporalRepository;
+import ddd.repository.exception.OptimisticLockingException;
 import eventstore.Event;
 import eventstore.EventStore;
-import ddd.repository.IdentifiedEntity;
-import ddd.repository.TemporalRepository;
-import ddd.repository.PersistenceOrientedRepository;
-import ddd.repository.exception.OptimisticLockingException;
+import eventstore.PayloadEvent;
+import eventstore.util.RuntimeGeneric;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.ParameterizedType;
+import java.util.ConcurrentModificationException;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.toSet;
 import static java.util.stream.Collectors.toList;
@@ -65,7 +67,7 @@ public abstract class EventSourcedRepository<T extends EventSourcedEntity<T> & I
             if (!events.hasNext()) {
                 return snapshot;
             }
-            T entity = (T) (snapshot.isPresent() ? snapshot.get() : initEntity((InitialEvent) events.next()));
+            T entity = (T) (snapshot.isPresent() ? snapshot.get() : initEntity(events.next()));
             while (entity.getMutatedVersion() != version && events.hasNext()) {
                 Event event = events.next();
                 if (event instanceof RemovedEvent) {
@@ -84,7 +86,23 @@ public abstract class EventSourcedRepository<T extends EventSourcedEntity<T> & I
     protected Optional<T> snapshot(K id, long before) { return Optional.empty(); }
 
     private T initEntity(Event initEvent) {
-        return ((InitialEvent<T>) initEvent).initializedObject();
+        try {
+            Map<Class, Constructor> constructors = EventSourcedEntity.constructors.get(entityClass());
+            if (constructors.containsKey(initEvent.getClass())) {
+                return (T) constructors.get(initEvent.getClass()).newInstance(initEvent);
+            } else if (initEvent instanceof PayloadEvent) {
+                Object payload = ((PayloadEvent) initEvent).payload;
+                if (constructors.containsKey(payload.getClass())) {
+                    return (T) constructors.get(payload.getClass()).newInstance(payload);
+                } else {
+                    throw new IllegalArgumentException("The entity does not have a constructor for the payload " + payload);
+                }
+            } else {
+                throw new IllegalArgumentException("The entity does not have a constructor for the event " + initEvent);
+            }
+        } catch (InstantiationException|IllegalAccessException|InvocationTargetException e) {
+            throw new EventSourcingException("Couldn't initiate the entity with event " + initEvent, e);
+        }
     }
 
     private Optional<T> getAndApply(K id, long after, Stream<Event> changes) {

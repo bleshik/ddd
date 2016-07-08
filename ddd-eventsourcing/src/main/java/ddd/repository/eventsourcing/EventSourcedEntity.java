@@ -2,6 +2,7 @@ package ddd.repository.eventsourcing;
 
 import eventstore.Event;
 import eventstore.PayloadEvent;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -57,10 +58,10 @@ public abstract class EventSourcedEntity<T extends EventSourcedEntity<T>> implem
     private long _version = 1;
     private long _updateDate = System.currentTimeMillis();
     private long _committedVersion = 0;
-    private static final ClassValue<Map<Class<? extends Event>, Method>> mutatingMethods =
-        new ClassValue<Map<Class<? extends Event>, Method>>() {
+    static final ClassValue<Map<Class, Method>> mutatingMethods =
+        new ClassValue<Map<Class, Method>>() {
         @Override
-        protected Map<Class<? extends Event>, Method> computeValue(Class<?> type) {
+        protected Map<Class, Method> computeValue(Class<?> type) {
             Stream<Method> whenMethods = Stream.empty();
             Class<?> curClass = type;
             while(curClass != Object.class) {
@@ -78,15 +79,63 @@ public abstract class EventSourcedEntity<T extends EventSourcedEntity<T>> implem
                 curClass = curClass.getSuperclass();
             }
             return whenMethods.collect(
-                groupingBy((m) -> (Class<? extends Event>) m.getParameterTypes()[0],
+                groupingBy((m) -> (Class) m.getParameterTypes()[0],
                     collectingAndThen(toList(), (list) -> list.get(0))
                 )
             );
         }
     };
 
-    protected EventSourcedEntity(InitialEvent<T> initialEvent) {
-        _mutatingChanges.add(initialEvent);
+    static final ClassValue<Map<Class, Constructor>> constructors =
+        new ClassValue<Map<Class, Constructor>>() {
+        @Override
+        protected Map<Class, Constructor> computeValue(Class<?> type) {
+            Stream<Constructor> constructors = Stream.empty();
+            Class<?> curClass = type;
+            while(curClass != Object.class) {
+                constructors = Stream.concat(
+                    constructors,
+                    Arrays.asList(curClass.getConstructors())
+                    .stream()
+                    .filter(c -> c.getParameterTypes().length == 1)
+                    .map(c -> { c.setAccessible(true); return c; })
+                );
+                curClass = curClass.getSuperclass();
+            }
+            return constructors.collect(
+                groupingBy((m) -> (Class) m.getParameterTypes()[0], collectingAndThen(toList(), (list) -> list.get(0)))
+            );
+        }
+    };
+
+    /**
+     * Adds the initial event to the list of changes, checking that there is the corresponding constructor, so that the
+     * entity could be initialized by the given event.
+     * @param initialEvent event to be used for the initialization
+     */
+    protected EventSourcedEntity(Event initialEvent) {
+        Map<Class, Constructor> constructors = EventSourcedEntity.constructors.get(this.getClass());
+        if (constructors.containsKey(initialEvent.getClass())) {
+            _mutatingChanges.add(initialEvent);
+        } else if (initialEvent instanceof PayloadEvent) {
+            Object payload = ((PayloadEvent) initialEvent).payload;
+            if (constructors.containsKey(payload.getClass())) {
+                _mutatingChanges.add(initialEvent);
+            } else {
+                throw new IllegalArgumentException("The entity does not have a constructor for the payload " + payload);
+            }
+        } else {
+            throw new IllegalArgumentException("The entity does not have a constructor for the event " + initialEvent);
+        }
+    }
+
+    /**
+     * Wraps the given POJO into an event object, adds it to the list of changes, checking that there is the
+     * corresponding constructor, so that the entity could be initialized by the given POJO.
+     * @param initialEvent POJO to be used for the initialization
+     */
+    protected EventSourcedEntity(Object initialEvent) {
+        this(new PayloadEvent(initialEvent));
     }
 
     /**

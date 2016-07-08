@@ -1,8 +1,9 @@
 package ddd.repository.eventsourcing;
 
+import ddd.repository.IdentifiedEntity;
+import eventstore.Event;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
-import ddd.repository.IdentifiedEntity;
 
 /**
  * {@link EventSourcedEntity} with identifier.
@@ -12,10 +13,16 @@ public abstract class IdentifiedEventSourcedEntity<T extends EventSourcedEntity<
 
     private K id;
 
-    public IdentifiedEventSourcedEntity(K id, InitialEvent<T> initialEvent) {
+    public IdentifiedEventSourcedEntity(K id, Event initialEvent) {
         super(initialEvent);
         this.id = id;
     }
+
+    public IdentifiedEventSourcedEntity(K id, Object initialEvent) {
+        super(initialEvent);
+        this.id = id;
+    }
+
 
     @Override
     public K getId() {
