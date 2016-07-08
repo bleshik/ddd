@@ -139,7 +139,7 @@ public abstract class EventSourcedEntity<T extends EventSourcedEntity<T>> implem
     }
 
     /**
-     * Applies the event changes.
+     * Applies the event changes. This will add the event into the list of changes, and mutate the entity.
      * @return the entity with the applied changes
      */
     public T apply(Event event) {
@@ -159,7 +159,7 @@ public abstract class EventSourcedEntity<T extends EventSourcedEntity<T>> implem
     }
 
     /**
-     * Applies the POJO event changes.
+     * Applies the POJO event changes. This will add the event into the list of changes, and mutate the entity.
      * @return the entity with the applied changes
      */
     public T apply(Object event) {
