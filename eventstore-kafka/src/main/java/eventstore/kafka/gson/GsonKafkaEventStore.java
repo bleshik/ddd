@@ -11,7 +11,7 @@ public class GsonKafkaEventStore extends KafkaEventStore {
             String kafkaNodes,
             String zookeeperNodes,
             KafkaEventStoreOptimisticLockingStrategy strategy) {
-        super(name, applicationId, kafkaNodes, zookeeperNodes, new GsonSerde<Event>(){{}}, strategy);
+        super(name, applicationId, kafkaNodes, zookeeperNodes, new KafkaGsonSerde<Event>(){{}}, strategy);
     }
 
     public GsonKafkaEventStore(String name,

@@ -21,8 +21,8 @@ import ddd.repository.IdentifiedEntity;
 import ddd.repository.eventsourcing.EventSourcedRepository;
 import ddd.repository.eventsourcing.EventSourcedEntity;
 import eventstore.mongodb.MongoDbEventStore;
+import eventstore.util.DbObjectMapper;
 import eventstore.util.mongodb.Migration;
-import eventstore.util.mongodb.MongoDbObjectMapper;
 import eventstore.util.mongodb.GsonMongoDbObjectMapper;
 import eventstore.util.collection.Collections;
 
@@ -33,14 +33,14 @@ import eventstore.util.collection.Collections;
 public abstract class MongoDbRepository<T extends IdentifiedEntity<K>, K> implements PersistenceOrientedRepository<T, K>, RuntimeGeneric {
 
     protected DBCollection entityCollection;
-    private MongoDbObjectMapper mapper;
+    private DbObjectMapper<DBObject> mapper;
     protected Class<T> entityClass;
 
-    public MongoDbRepository(DBCollection entityCollection, MongoDbObjectMapper mapper) {
+    public MongoDbRepository(DBCollection entityCollection, DbObjectMapper<DBObject> mapper) {
         init(entityCollection, mapper);
     }
 
-    public MongoDbRepository(DB db, MongoDbObjectMapper mapper) {
+    public MongoDbRepository(DB db, DbObjectMapper<DBObject> mapper) {
         init(db.getCollection(((Class<T>) getClassArgument(0)).getSimpleName()), mapper);
     }
 
@@ -48,7 +48,7 @@ public abstract class MongoDbRepository<T extends IdentifiedEntity<K>, K> implem
         this(db, new GsonMongoDbObjectMapper());
     }
 
-    protected void init(DBCollection entityCollection, MongoDbObjectMapper mapper) {
+    protected void init(DBCollection entityCollection, DbObjectMapper<DBObject> mapper) {
         this.entityCollection = entityCollection;
         this.mapper           = mapper;
         this.entityClass      = (Class<T>) getClassArgument(0);

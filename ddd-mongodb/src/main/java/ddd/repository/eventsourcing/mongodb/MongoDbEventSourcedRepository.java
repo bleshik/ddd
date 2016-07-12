@@ -14,7 +14,7 @@ import eventstore.mongodb.MongoDbEventStore;
 import eventstore.util.collection.Collections;
 import eventstore.util.mongodb.GsonMongoDbObjectMapper;
 import eventstore.util.mongodb.Migration;
-import eventstore.util.mongodb.MongoDbObjectMapper;
+import eventstore.util.DbObjectMapper;
 import java.lang.reflect.Field;
 import java.util.Iterator;
 import java.util.Optional;
@@ -29,9 +29,9 @@ import java.util.stream.StreamSupport;
 public abstract class MongoDbEventSourcedRepository<T extends EventSourcedEntity<T> & IdentifiedEntity<K>, K> extends EventSourcedRepository<T, K> {
 
     protected DBCollection snapshots;
-    private MongoDbObjectMapper mapper;
+    private DbObjectMapper<DBObject> mapper;
 
-    public MongoDbEventSourcedRepository(DBCollection snapshots, EventStore eventStore, MongoDbObjectMapper mapper) {
+    public MongoDbEventSourcedRepository(DBCollection snapshots, EventStore eventStore, DbObjectMapper<DBObject> mapper) {
         init(snapshots, eventStore, mapper);
     }
 
@@ -43,7 +43,7 @@ public abstract class MongoDbEventSourcedRepository<T extends EventSourcedEntity
         init(db.getCollection(entityClass().getSimpleName()), new MongoDbEventStore(db.getCollection(entityClass().getSimpleName() + "Events")), new GsonMongoDbObjectMapper());
     }
 
-    protected void init(DBCollection snapshots, EventStore eventStore, MongoDbObjectMapper mapper) {
+    protected void init(DBCollection snapshots, EventStore eventStore, DbObjectMapper<DBObject> mapper) {
         init(eventStore);
         this.snapshots = snapshots;
         this.mapper    = mapper;
@@ -86,6 +86,7 @@ public abstract class MongoDbEventSourcedRepository<T extends EventSourcedEntity
         return dbObject;
     }
 
+    @SuppressWarnings("unchecked")
     protected T deserialize(DBObject dbObject) {
         try {
             if (dbObject == null) {
