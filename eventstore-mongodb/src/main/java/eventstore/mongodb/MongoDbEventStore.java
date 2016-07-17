@@ -7,6 +7,7 @@ import com.mongodb.DBCollection;
 import com.mongodb.DBObject;
 import com.mongodb.DuplicateKeyException;
 import com.mongodb.MongoException;
+import eventstore.AbstractEventStore;
 import eventstore.Event;
 import eventstore.EventStore;
 import eventstore.EventStoreException;
@@ -36,7 +37,7 @@ import org.apache.commons.codec.digest.DigestUtils;
  * @see <a href="https://jira.mongodb.org/browse/SERVER-5878">Allow hashed indexes to be unique</a>
  */
 @SuppressWarnings("unchecked")
-public class MongoDbEventStore implements EventStore {
+public class MongoDbEventStore extends AbstractEventStore<DBObject> {
 
     private final DBCollection dbCollection;
     private final DbObjectMapper<DBObject> mapper;
@@ -46,6 +47,7 @@ public class MongoDbEventStore implements EventStore {
     }
 
     public MongoDbEventStore(DBCollection dbCollection, DbObjectMapper<DBObject> mapper) { 
+        super(mapper);
         this.dbCollection = dbCollection;
         this.mapper       = mapper;
         Migration.migrate(() -> {
@@ -58,16 +60,11 @@ public class MongoDbEventStore implements EventStore {
     }
 
     @Override
-    public Optional<Stream<Event>> streamSince(String streamName, long lastReceivedEvent) {
-        Iterator<DBObject> cursor = dbCollection.find(
+    protected Iterator<DBObject> iteratorSince(String streamName, long lastReceivedEvent) {
+        return dbCollection.find(
                 new BasicDBObject("_id._streamId", hashedStreamName(streamName))
                     .append("_id._idx", new BasicDBObject("$gt", lastReceivedEvent))
         ).sort(new BasicDBObject("occurredOn", 1));
-        if (!cursor.hasNext()) {
-            return version(streamName) > 0 ? Optional.of(Stream.empty()) : Optional.empty();
-        } else {
-            return Optional.of(Collections.stream(cursor).map(mongoObject -> (Event) mapper.mapToObject(mongoObject)));
-        }
     }
 
     private DBObject serialize(Event event) {

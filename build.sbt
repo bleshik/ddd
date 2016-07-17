@@ -31,6 +31,11 @@ lazy val eventstoreMongodb = project.in(file("eventstore-mongodb"))
   .dependsOn(eventstore % "test->test;compile->compile")
   .settings(commonSettings: _*)
 
+lazy val eventstoreDynamodb = project.in(file("eventstore-dynamodb"))
+  .dependsOn(core)
+  .dependsOn(eventstore % "test->test;compile->compile")
+  .settings(commonSettings: _*)
+
 lazy val eventstoreKafka = project.in(file("eventstore-kafka"))
   .dependsOn(core)
   .dependsOn(eventstore % "test->test;compile->compile")

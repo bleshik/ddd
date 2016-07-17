@@ -20,3 +20,4 @@ node_modules/
 current.js
 
 *.log
+dynamodb-local/
