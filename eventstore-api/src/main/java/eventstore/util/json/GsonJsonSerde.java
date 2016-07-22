@@ -1,6 +1,8 @@
 package eventstore.util.json;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
@@ -33,6 +35,10 @@ public class GsonJsonSerde implements JsonSerde {
 
     @Override
     public Object deserialize(String json) {
+        JsonElement element = parser.parse(json);
+        if (element instanceof JsonNull) {
+            return null;
+        }
         JsonObject data = (JsonObject) parser.parse(json);
         try {
             Object obj = gson.fromJson(data, Class.forName(data.get("type").getAsString()));

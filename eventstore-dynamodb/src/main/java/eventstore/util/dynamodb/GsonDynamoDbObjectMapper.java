@@ -5,6 +5,10 @@ import com.google.gson.Gson;
 import eventstore.util.json.GsonJsonSerde;
 import eventstore.util.json.JsonDbObjectMapper;
 
+
+/**
+ * {@link Gson} based implementation of the mapper for DynamoDB.
+ */
 public class GsonDynamoDbObjectMapper extends JsonDbObjectMapper<Item> {
 
     public GsonDynamoDbObjectMapper() {

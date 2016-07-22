@@ -61,7 +61,7 @@ public abstract class MongoDbEventSourcedRepository<T extends EventSourcedEntity
                     null,
                     null,
                     false,
-                    serialize(committed),
+                    mapper.mapToDbObject(committed),
                     false,
                     unmutatedVersion == 0
             );
@@ -78,41 +78,11 @@ public abstract class MongoDbEventSourcedRepository<T extends EventSourcedEntity
         return snapshots.remove(new BasicDBObject("id", id)).getN() > 0;
     }
 
-    protected DBObject serialize(T entity) {
-        DBObject dbObject = mapper.mapToDbObject(entity);
-        dbObject.put("id", entity.getId());
-        dbObject.put("_version", entity.getMutatedVersion());
-        dbObject.put("_updateDate", System.currentTimeMillis());
-        return dbObject;
-    }
-
-    @SuppressWarnings("unchecked")
-    protected T deserialize(DBObject dbObject) {
-        try {
-            if (dbObject == null) {
-                return null;
-            }
-            T entity = (T) mapper.mapToObject(dbObject);
-
-            if (dbObject.get("_version") != null) {
-                Field versionField = EventSourcedEntity.class.getDeclaredField("_version");
-                versionField.setAccessible(true);
-                versionField.set(entity, (long) dbObject.get("_version"));
-            }
-
-            Field updateDateField = EventSourcedEntity.class.getDeclaredField("_updateDate");
-            updateDateField.setAccessible(true);
-            updateDateField.set(entity, Optional.ofNullable((Long) dbObject.get("_updateDate")).orElse(-1L));
-
-            return entity;
-        } catch(NoSuchFieldException|IllegalAccessException e) { throw new AssertionError("This shouldn't happen"); }
-    }
-
     protected Optional<T> snapshot(K id, long before) {
         DBObject dbObject = snapshots.findOne(
                 new BasicDBObject("_version", new BasicDBObject("$lte", before < 0 ? Long.MAX_VALUE : before)).append("id", id)
         );
-        return Optional.ofNullable(deserialize(dbObject));
+        return Optional.ofNullable((T) mapper.mapToObject(dbObject));
     }
 
     protected void migrate() {}
@@ -134,10 +104,12 @@ public abstract class MongoDbEventSourcedRepository<T extends EventSourcedEntity
     }
 
     protected Stream<T> find(DBObject query, DBObject orderBy, int limit, int offset, DBObject hint) {
-        return Collections.stream((Iterator<DBObject>) snapshots.find(query).sort(orderBy).hint(hint).skip(offset).limit(limit)).map(e -> deserialize(e));
+        return Collections.stream(
+                (Iterator<DBObject>) snapshots.find(query).sort(orderBy).hint(hint).skip(offset).limit(limit)
+        ).map(e -> (T) mapper.mapToObject(e));
     }
 
     protected Optional<T> findOne(DBObject query) {
-        return Optional.ofNullable(snapshots.findOne(query)).map(this::deserialize);
+        return Optional.ofNullable(snapshots.findOne(query)).map((e) -> (T) mapper.mapToObject(e));
     }
 }

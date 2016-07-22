@@ -13,7 +13,7 @@ import eventstore.util.json.JsonDbObjectMapper;
 import java.lang.reflect.Field;
 
 /**
- * {@link Gson} based implementation of the mapper.
+ * {@link Gson} based implementation of the mapper for MongoDB.
  */
 public class GsonMongoDbObjectMapper extends JsonDbObjectMapper<DBObject> {
 

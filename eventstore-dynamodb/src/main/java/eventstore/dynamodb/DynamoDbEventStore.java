@@ -19,13 +19,13 @@ import com.amazonaws.services.dynamodbv2.model.KeySchemaElement;
 import com.amazonaws.services.dynamodbv2.model.KeyType;
 import com.amazonaws.services.dynamodbv2.model.ProvisionedThroughput;
 import com.amazonaws.services.dynamodbv2.model.ResourceNotFoundException;
-import com.amazonaws.services.dynamodbv2.model.ReturnValue;
 import eventstore.AbstractEventStore;
 import eventstore.Event;
 import eventstore.EventStore;
 import eventstore.EventStoreException;
 import eventstore.util.DbObjectMapper;
 import eventstore.util.collection.Collections;
+import eventstore.util.dynamodb.ExtendedTable;
 import eventstore.util.dynamodb.GsonDynamoDbObjectMapper;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -45,7 +45,7 @@ import java.util.stream.StreamSupport;
 @SuppressWarnings("unchecked")
 public class DynamoDbEventStore extends AbstractEventStore<Item> {
 
-    private final Table table;
+    private final ExtendedTable table;
 
     public DynamoDbEventStore(
             AmazonDynamoDB client,
@@ -57,17 +57,17 @@ public class DynamoDbEventStore extends AbstractEventStore<Item> {
 
     public DynamoDbEventStore(Table table, DbObjectMapper<Item> mapper) { 
         super(mapper);
-        this.table  = table;
+        this.table  = new ExtendedTable(table);
     }
 
-    private static Table getTable(
+    private static ExtendedTable getTable(
             AmazonDynamoDB client,
             String tableName,
             long readCapacityUnits,
             long writeCapacityUnits) {
-        Table table = new Table(client, tableName);
+        ExtendedTable table = new ExtendedTable(client, tableName);
         ProvisionedThroughput provisionedThroughput = new ProvisionedThroughput(readCapacityUnits, writeCapacityUnits);
-        if (!exists(new Table(client, tableName))) {
+        if (!table.exists()) {
             client.createTable(
                 new CreateTableRequest(
                     Arrays.asList(
@@ -88,18 +88,9 @@ public class DynamoDbEventStore extends AbstractEventStore<Item> {
         return table;
     }
 
-    private static boolean exists(Table table) {
-        try {
-            table.describe();
-            return true;
-        } catch(ResourceNotFoundException e) {
-            return false;
-        } 
-    }
-
     @Override
     protected Iterator<Item> iteratorSince(String streamName, long lastReceivedEvent) {
-        return query(new QuerySpec()
+        return table.queryStream(new QuerySpec()
                 .withHashKey("streamName", streamName)
                 .withRangeKeyCondition(new RangeKeyCondition("streamVersion").gt(lastReceivedEvent))
         ).iterator();
@@ -115,7 +106,6 @@ public class DynamoDbEventStore extends AbstractEventStore<Item> {
                     .withItem(
                         mapper.mapToDbObject(event.occurred(++nextEventIndex)).withString("streamName", streamName)
                         )
-                    .withReturnValues(ReturnValue.ALL_OLD)
                     .withExpected(new Expected("streamName").notExist())
                 );
             } catch (ConditionalCheckFailedException e) {
@@ -130,25 +120,18 @@ public class DynamoDbEventStore extends AbstractEventStore<Item> {
     @Override
     public long size() {
         //TODO: better to use a separate table with counters
-        return scan(new ScanSpec().withAttributesToGet("streamName")).map((item) -> item.getString("streamName"))
+        return table.scanStream(new ScanSpec().withAttributesToGet("streamName")).map((item) -> item.getString("streamName"))
             .collect(Collectors.toSet()).size();
     }
 
     @Override
     public long version(String streamName) {
-        return query(new QuerySpec()
+        return table.queryStream(new QuerySpec()
             .withAttributesToGet("streamVersion")
             .withScanIndexForward(false)
             .withHashKey("streamName", streamName)
             .withMaxResultSize(1)
-        ).map(e -> e.getLong("streamVersion")).findAny().orElse(0L);
+        ).map(e -> (long) e.getLong("streamVersion")).findAny().orElse(0L);
     }
 
-    protected Stream<Item> query(QuerySpec query) {
-        return Collections.stream(table.query(query));
-    }
-
-    protected Stream<Item> scan(ScanSpec scan) {
-        return Collections.stream(table.scan(scan));
-    }
 }

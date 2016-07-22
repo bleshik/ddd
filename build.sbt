@@ -6,7 +6,7 @@ lazy val commonDependencies = Seq(
   libraryDependencies += "org.slf4j" % "slf4j-api" % "1.7.21",
   libraryDependencies += "org.slf4j" % "slf4j-simple" % "1.7.21",
   libraryDependencies += "org.slf4j" % "log4j-over-slf4j" % "1.7.21",
-libraryDependencies += "org.apache.commons" % "commons-lang3" % "3.4",
+  libraryDependencies += "org.apache.commons" % "commons-lang3" % "3.4",
   libraryDependencies += "com.novocode" % "junit-interface" % "0.11" % "test",
   libraryDependencies += "junit" % "junit" % "4.12" % "test"
 )
@@ -52,3 +52,8 @@ lazy val mongodb = project.in(file("ddd-mongodb"))
   .dependsOn(eventsourcing % "test->test;compile->compile")
   .settings(commonSettings: _*)
 
+lazy val dynamodb = project.in(file("ddd-dynamodb"))
+  .dependsOn(core)
+  .dependsOn(eventstoreDynamodb)
+  .dependsOn(eventsourcing % "test->test;compile->compile")
+  .settings(commonSettings: _*)
