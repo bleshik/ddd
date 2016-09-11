@@ -9,7 +9,7 @@ public class DynamoDbRepositorySpec extends AbstractHouseRepositorySpec<Immutabl
     public DynamoDbRepositorySpec() {
         super(
                 new DynamoDbRepository<ImmutableHouse, String>(
-                    new LocalAmazonDynamoDbClient(8080),
+                    new LocalAmazonDynamoDbClient(9823),
                     UUID.randomUUID().toString(),
                     1000,
                     1000

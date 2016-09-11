@@ -120,7 +120,8 @@ public class DynamoDbEventStore extends AbstractEventStore<Item> {
     @Override
     public long size() {
         //TODO: better to use a separate table with counters
-        return table.scanStream(new ScanSpec().withAttributesToGet("streamName")).map((item) -> item.getString("streamName"))
+        return table.scanStream(new ScanSpec().withAttributesToGet("streamName"), true)
+            .map((item) -> item.getString("streamName"))
             .collect(Collectors.toSet()).size();
     }
 

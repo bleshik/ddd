@@ -11,7 +11,11 @@ lazy val eventsourcing = RootProject(file("../ddd-eventsourcing"))
 lazy val dddDynamodb = project.in(file(".")).dependsOn(eventsourcing % "test->test;compile->compile").dependsOn(eventstoreDynamodb)
 
 startDynamoDBLocal <<= startDynamoDBLocal.dependsOn(compile in Test)
+
 test in Test <<= (test in Test).dependsOn(startDynamoDBLocal)
+
 testOnly in Test <<= (testOnly in Test).dependsOn(startDynamoDBLocal)
+
 testOptions in Test <+= dynamoDBLocalTestCleanup
-dynamoDBLocalPort := 8080
+
+dynamoDBLocalPort := 9823

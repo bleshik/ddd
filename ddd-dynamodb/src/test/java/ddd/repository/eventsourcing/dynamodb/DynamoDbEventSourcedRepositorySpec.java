@@ -11,7 +11,7 @@ public class DynamoDbEventSourcedRepositorySpec
     public DynamoDbEventSourcedRepositorySpec() {
         super(
                 new DynamoDbEventSourcedRepository<EventSourcedHouse, String>(
-                    new LocalAmazonDynamoDbClient(8080),
+                    new LocalAmazonDynamoDbClient(9823),
                     UUID.randomUUID().toString(),
                     1000,
                     1000

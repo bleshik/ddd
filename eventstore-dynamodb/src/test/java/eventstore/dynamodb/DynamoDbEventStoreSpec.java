@@ -7,7 +7,7 @@ import java.util.UUID;
 public class DynamoDbEventStoreSpec extends AbstractEventStoreSpec {
     public DynamoDbEventStoreSpec() {
         super(withObject(
-                    new LocalAmazonDynamoDbClient(),
+                    new LocalAmazonDynamoDbClient(9823),
                     (client) -> {
                         String eventStoreTable = "Events" + UUID.randomUUID();
                         return () -> new DynamoDbEventStore(client, eventStoreTable, 1000, 1000);
