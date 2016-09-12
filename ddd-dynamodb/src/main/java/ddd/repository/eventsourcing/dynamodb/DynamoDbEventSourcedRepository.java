@@ -55,7 +55,7 @@ public abstract class DynamoDbEventSourcedRepository<T extends EventSourcedEntit
             long readCapacityUnits,
             long writeCapacityUnits) {
         this.tableName = tableName != null ? tableName : getClassArgument(0).getSimpleName();
-        this.table     = getTable(client, this.tableName, readCapacityUnits, writeCapacityUnits);
+        this.table     = new ExtendedTable(client, this.tableName, "id", getClassArgument(1), readCapacityUnits, writeCapacityUnits);
         this.mapper    = new GsonDynamoDbObjectMapper();
         init(new DynamoDbEventStore(client, this.tableName + "Events", readCapacityUnits, writeCapacityUnits));
     }
@@ -67,31 +67,6 @@ public abstract class DynamoDbEventSourcedRepository<T extends EventSourcedEntit
         this.mapper    = mapper;
     }
 
-    private ExtendedTable getTable(
-            AmazonDynamoDB client,
-            String tableName,
-            long readCapacityUnits,
-            long writeCapacityUnits) {
-        ExtendedTable table = new ExtendedTable(client, tableName);
-        ProvisionedThroughput provisionedThroughput = new ProvisionedThroughput(readCapacityUnits, writeCapacityUnits);
-        if (!table.exists()) {
-            client.createTable(
-                new CreateTableRequest(
-                    Arrays.asList(
-                        new AttributeDefinition("id", Number.class.isAssignableFrom(getClassArgument(1)) ? "N" : "S")
-                    ),
-                    tableName,
-                    Arrays.asList(
-                        new KeySchemaElement("id", KeyType.HASH)
-                    ),
-                    provisionedThroughput
-                )
-            );
-        } else {
-            table.updateTable(new UpdateTableSpec().withProvisionedThroughput(provisionedThroughput));
-        }
-        return table;
-    }
 
     @Override
     protected void saveSnapshot(T committed, long unmutatedVersion) {

@@ -45,7 +45,7 @@ public abstract class DynamoDbRepository<T extends IdentifiedEntity<K>, K>
             long writeCapacityUnits) {
         super(new GsonDynamoDbObjectMapper());
         this.tableName = getClassArgument(0).getSimpleName();
-        this.table     = getTable(client, tableName, readCapacityUnits, writeCapacityUnits);
+        this.table     = new ExtendedTable(client, tableName, "id", getClassArgument(1), readCapacityUnits, writeCapacityUnits);
     }
 
     public DynamoDbRepository(
@@ -54,7 +54,7 @@ public abstract class DynamoDbRepository<T extends IdentifiedEntity<K>, K>
             long readCapacityUnits,
             long writeCapacityUnits) {
         super(new GsonDynamoDbObjectMapper());
-        this.table     = getTable(client, tableName, readCapacityUnits, writeCapacityUnits);
+        this.table     = new ExtendedTable(client, tableName, "id", getClassArgument(1), readCapacityUnits, writeCapacityUnits);
         this.tableName = tableName;
     }
 
@@ -62,32 +62,6 @@ public abstract class DynamoDbRepository<T extends IdentifiedEntity<K>, K>
         super(mapper);
         this.table     = new ExtendedTable(table);
         this.tableName = table.getTableName();
-    }
-
-    private ExtendedTable getTable(
-            AmazonDynamoDB client,
-            String tableName,
-            long readCapacityUnits,
-            long writeCapacityUnits) {
-        ExtendedTable table = new ExtendedTable(client, tableName);
-        ProvisionedThroughput provisionedThroughput = new ProvisionedThroughput(readCapacityUnits, writeCapacityUnits);
-        if (!table.exists()) {
-            client.createTable(
-                new CreateTableRequest(
-                    Arrays.asList(
-                        new AttributeDefinition("id", Number.class.isAssignableFrom(getClassArgument(1)) ? "N" : "S")
-                    ),
-                    tableName,
-                    Arrays.asList(
-                        new KeySchemaElement("id", KeyType.HASH)
-                    ),
-                    provisionedThroughput
-                )
-            );
-        } else {
-            table.updateTable(new UpdateTableSpec().withProvisionedThroughput(provisionedThroughput));
-        }
-        return table;
     }
 
     @Override
@@ -104,7 +78,6 @@ public abstract class DynamoDbRepository<T extends IdentifiedEntity<K>, K>
     @Override
     protected Item doSave(Item dbObject, Optional<Long> currentVersion) {
         try {
-            System.out.println(currentVersion);
             currentVersion.ifPresent((version) -> dbObject.withLong("version", version + 1));
             PutItemSpec spec = new PutItemSpec().withItem(dbObject);
             table.putItem(
