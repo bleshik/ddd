@@ -3,6 +3,7 @@ package eventstore.util.dynamodb;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.document.Item;
 import com.amazonaws.services.dynamodbv2.document.ItemCollection;
+import com.amazonaws.services.dynamodbv2.document.KeyAttribute;
 import com.amazonaws.services.dynamodbv2.document.PrimaryKey;
 import com.amazonaws.services.dynamodbv2.document.QueryOutcome;
 import com.amazonaws.services.dynamodbv2.document.ScanOutcome;
@@ -12,6 +13,7 @@ import com.amazonaws.services.dynamodbv2.document.spec.DeleteItemSpec;
 import com.amazonaws.services.dynamodbv2.document.spec.QuerySpec;
 import com.amazonaws.services.dynamodbv2.document.spec.ScanSpec;
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
+import com.amazonaws.services.dynamodbv2.model.QueryRequest;
 import com.amazonaws.services.dynamodbv2.model.QueryResult;
 import com.amazonaws.services.dynamodbv2.model.ResourceNotFoundException;
 import com.amazonaws.services.dynamodbv2.model.ReturnValue;
@@ -20,11 +22,13 @@ import com.amazonaws.services.dynamodbv2.model.ScanResult;
 import com.amazonaws.services.dynamodbv2.model.Select;
 import eventstore.util.collection.Collections;
 import java.lang.reflect.Field;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
@@ -46,8 +50,14 @@ public class ExtendedTable extends Table {
         this(getClient(table), table.getTableName());
     }
 
+    public Stream<Item> queryStream(QuerySpec q, boolean all) {
+        return Collections.stream(
+            doGetResult((lastEvaluatedKey) -> query(q.withExclusiveStartKey(lastEvaluatedKey)), all)
+        );
+    }
+
     public Stream<Item> queryStream(QuerySpec query) {
-        return Collections.stream(query(query));
+        return queryStream(query, false);
     }
 
     public long count() {
@@ -57,7 +67,7 @@ public class ExtendedTable extends Table {
 
     public Stream<Item> scanStream(ScanSpec s, boolean all) {
         return Collections.stream(
-            doGetResult((lastEvaluatedKey) -> client.scan(toRequest(s).withExclusiveStartKey(lastEvaluatedKey)), all)
+            doGetResult((lastEvaluatedKey) -> scan(s.withExclusiveStartKey(lastEvaluatedKey)), all)
         );
     }
 
@@ -65,15 +75,11 @@ public class ExtendedTable extends Table {
         return scanStream(scan, false);
     }
 
-    private ScanRequest toRequest(ScanSpec s) {
-        return s.getRequest().withTableName(getTableName());
-    }
-
-    private <T> Iterator<Item> doGetResult(Function<Map<String, AttributeValue>, T> fetch, boolean all) {
+    private <T> Iterator<Item> doGetResult(Function<KeyAttribute[], ItemCollection<T>> fetch, boolean all) {
         return new Iterator<Item>() {
 
             Iterator<Item> items;
-            Map<String, AttributeValue> lastEvaluatedKey;
+            KeyAttribute[] lastEvaluatedKey;
 
             public boolean hasNext() {
                 return items != null ? items.hasNext() : fetch();
@@ -87,20 +93,25 @@ public class ExtendedTable extends Table {
             }
 
             public boolean fetch() {
-                T fetched = fetch.apply(lastEvaluatedKey);
-                if (fetched instanceof ScanResult) {
-                    ScanResult scanResult = (ScanResult) fetched;
-                    items = InternalUtils.toItemList(scanResult.getItems()).iterator();
-                    lastEvaluatedKey = scanResult.getLastEvaluatedKey();
-                } else {
-                    QueryResult queryResult = (QueryResult) fetched;
-                    items = InternalUtils.toItemList(queryResult.getItems()).iterator();
-                    lastEvaluatedKey = queryResult.getLastEvaluatedKey();
+                ItemCollection<T> fetched = fetch.apply(lastEvaluatedKey);
+                items = fetched.iterator();
+                if (fetched.getLastLowLevelResult() instanceof ScanOutcome) {
+                    lastEvaluatedKey = toKeyAttributes(
+                            ((ScanOutcome) fetched.getLastLowLevelResult()).getScanResult().getLastEvaluatedKey());
+                } else if (fetched.getLastLowLevelResult() instanceof QueryOutcome) {
+                    lastEvaluatedKey = toKeyAttributes(
+                        ((QueryOutcome) fetched.getLastLowLevelResult()).getQueryResult().getLastEvaluatedKey());
                 }
                 return items.hasNext();
             }
 
         };
+    }
+
+    private KeyAttribute[] toKeyAttributes(Map<String, AttributeValue> values) {
+        return values.entrySet()
+                .stream()
+                .map((i) -> new KeyAttribute(i.getKey(), i.getValue())).toArray(KeyAttribute[]::new);
     }
 
     public boolean deleteAndCheck(PrimaryKey id) {

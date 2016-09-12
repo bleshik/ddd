@@ -109,6 +109,7 @@ public abstract class DynamoDbEventSourcedRepository<T extends EventSourcedEntit
         }
     }
 
+    @Override
     protected boolean removeSnapshot(K id) {
         return table.deleteAndCheck(new PrimaryKey("id", id));
     }
