@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
+import java.lang.reflect.Method;
 
 import static java.util.stream.Collectors.toSet;
 import static java.util.stream.Collectors.toList;
@@ -148,6 +149,19 @@ public abstract class EventSourcedRepository<T extends EventSourcedEntity<T> & I
             return entity;
         } else {
             try {
+                for (Event event : entity.getChanges()) {
+                    try {
+                        Method handler = EventSourcedEntity.mutatingMethods.get(this.getClass()).get(event.getClass());
+                        if (handler != null && handler.getParameterTypes().length == 2) {
+                            handler.invoke(this, event, entity);
+                        }
+                    } catch(IllegalAccessException e) {
+                        throw new AssertionError("This shouldn't happen");
+                    } catch(InvocationTargetException e) {
+                        throw new EventSourcingException(
+                                String.format("Exception occurred while handling the event %s.", event), e.getCause());
+                    }
+                }
                 eventStore.append(streamName(entity.getId()), entity.getUnmutatedVersion(), entity.getChanges());
                 T committed = entity.commitChanges();
                 saveSnapshot(committed, entity.getUnmutatedVersion());
@@ -166,7 +180,7 @@ public abstract class EventSourcedRepository<T extends EventSourcedEntity<T> & I
                                     eventStore.version(streamName(entity.getId()))), e);
                     }
                     return save(freshEntity);
-                } catch (EventSourcingException esException) {
+                } catch (Exception esException) {
                     throw new OptimisticLockingException("Couldn't resolve the conflict", esException);
                 }
             }

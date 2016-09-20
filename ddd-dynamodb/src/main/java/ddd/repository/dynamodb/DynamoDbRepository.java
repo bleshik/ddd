@@ -38,6 +38,7 @@ public abstract class DynamoDbRepository<T extends IdentifiedEntity<K>, K>
 
     protected final ExtendedTable table;
     protected final String tableName;
+    protected final ProvisionedThroughput provisionedThroughput;
 
     public DynamoDbRepository(
             AmazonDynamoDB client,
@@ -45,7 +46,8 @@ public abstract class DynamoDbRepository<T extends IdentifiedEntity<K>, K>
             long writeCapacityUnits) {
         super(new GsonDynamoDbObjectMapper());
         this.tableName = getClassArgument(0).getSimpleName();
-        this.table     = new ExtendedTable(client, tableName, "id", getClassArgument(1), readCapacityUnits, writeCapacityUnits);
+        this.table = new ExtendedTable(client, tableName, "id", getClassArgument(1), readCapacityUnits, writeCapacityUnits);
+        this.provisionedThroughput = new ProvisionedThroughput(readCapacityUnits, writeCapacityUnits);
     }
 
     public DynamoDbRepository(
@@ -54,14 +56,18 @@ public abstract class DynamoDbRepository<T extends IdentifiedEntity<K>, K>
             long readCapacityUnits,
             long writeCapacityUnits) {
         super(new GsonDynamoDbObjectMapper());
-        this.table     = new ExtendedTable(client, tableName, "id", getClassArgument(1), readCapacityUnits, writeCapacityUnits);
+        this.table = new ExtendedTable(client, tableName, "id", getClassArgument(1), readCapacityUnits, writeCapacityUnits);
         this.tableName = tableName;
+        this.provisionedThroughput = new ProvisionedThroughput(readCapacityUnits, writeCapacityUnits);
     }
 
     public DynamoDbRepository(Table table, DbObjectMapper<Item> mapper) {
         super(mapper);
         this.table     = new ExtendedTable(table);
         this.tableName = table.getTableName();
+        this.provisionedThroughput = this.table.exists() ?
+            this.table.getProvisionedThroughput() :
+            new ProvisionedThroughput(25L, 25L);
     }
 
     @Override

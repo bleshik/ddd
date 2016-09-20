@@ -33,16 +33,24 @@ public abstract class AbstractRepository<T extends IdentifiedEntity<K>, K, D, DK
 
     @Override
     public Optional<T> get(K id) {
-        return doGet(toDbId(id)).map((e) -> (T) mapper.mapToObject(e));
+        return doGet(toDbId(id)).map((e) -> deserialize(e));
     }
 
     protected abstract Optional<D> doGet(DK id);
 
     protected abstract DK toDbId(K id);
 
+    protected T deserialize(D dbObject) {
+        return (T) mapper.mapToObject(dbObject);
+    }
+
+    protected D serialize(T entity) {
+        return mapper.mapToDbObject(entity);
+    }
+
     @Override
     public T save(T entity) {
-        return (T) mapper.mapToObject(doSave(mapper.mapToDbObject(entity), version(entity)));
+        return deserialize(doSave(serialize(entity), version(entity)));
     }
 
     protected abstract D doSave(D dbObject, Optional<Long> currentVersion);

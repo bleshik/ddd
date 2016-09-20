@@ -21,6 +21,7 @@ import com.amazonaws.services.dynamodbv2.model.CreateTableRequest;
 import com.amazonaws.services.dynamodbv2.model.KeySchemaElement;
 import com.amazonaws.services.dynamodbv2.model.KeyType;
 import com.amazonaws.services.dynamodbv2.model.ProvisionedThroughput;
+import com.amazonaws.services.dynamodbv2.model.ProvisionedThroughputDescription;
 import com.amazonaws.services.dynamodbv2.model.QueryRequest;
 import com.amazonaws.services.dynamodbv2.model.QueryResult;
 import com.amazonaws.services.dynamodbv2.model.ResourceNotFoundException;
@@ -32,8 +33,8 @@ import eventstore.util.collection.Collections;
 import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.List;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -61,6 +62,10 @@ public class ExtendedTable extends Table {
             long readCapacityUnits,
             long writeCapacityUnits) {
         this(client, tableName, idName, idClass, new ProvisionedThroughput(readCapacityUnits, writeCapacityUnits));
+    }
+
+    public ExtendedTable(AmazonDynamoDB client, String tableName, Class<?> idClass, ProvisionedThroughput t) {
+        this(client, tableName, "id", idClass, t);
     }
 
     public ExtendedTable(
@@ -111,6 +116,10 @@ public class ExtendedTable extends Table {
             Arrays.asList(new KeySchemaElement(idName, KeyType.HASH)),
             t
         );
+    }
+
+    public UpdateItemOutcome put(PrimaryKey key, String attribute, Object value) {
+        return updateItem(key, new AttributeUpdate(attribute).put(value));
     }
 
     public UpdateItemOutcome add(PrimaryKey key, String attribute, Object... values) {
@@ -198,6 +207,11 @@ public class ExtendedTable extends Table {
         } catch(ResourceNotFoundException e) {
             return false;
         } 
+    }
+
+    public ProvisionedThroughput getProvisionedThroughput() {
+        ProvisionedThroughputDescription description = describe().getProvisionedThroughput();
+        return new ProvisionedThroughput(description.getReadCapacityUnits(), description.getWriteCapacityUnits());
     }
 
     private static final Field clientField;

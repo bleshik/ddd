@@ -53,6 +53,14 @@ public abstract class MongoDbEventSourcedRepository<T extends EventSourcedEntity
         });
     }
 
+    protected T deserialize(DBObject dbObject) {
+        return (T) mapper.mapToObject(dbObject);
+    }
+
+    protected DBObject serialize(T entity) {
+        return mapper.mapToDbObject(entity);
+    }
+
     @Override
     protected void saveSnapshot(T committed, long unmutatedVersion) {
         try {
@@ -61,7 +69,7 @@ public abstract class MongoDbEventSourcedRepository<T extends EventSourcedEntity
                     null,
                     null,
                     false,
-                    mapper.mapToDbObject(committed),
+                    serialize(committed),
                     false,
                     unmutatedVersion == 0
             );
@@ -82,7 +90,7 @@ public abstract class MongoDbEventSourcedRepository<T extends EventSourcedEntity
         DBObject dbObject = snapshots.findOne(
                 new BasicDBObject("_version", new BasicDBObject("$lte", before < 0 ? Long.MAX_VALUE : before)).append("id", id)
         );
-        return Optional.ofNullable((T) mapper.mapToObject(dbObject));
+        return Optional.ofNullable(deserialize(dbObject));
     }
 
     protected void migrate() {}
@@ -106,10 +114,10 @@ public abstract class MongoDbEventSourcedRepository<T extends EventSourcedEntity
     protected Stream<T> find(DBObject query, DBObject orderBy, int limit, int offset, DBObject hint) {
         return Collections.stream(
                 (Iterator<DBObject>) snapshots.find(query).sort(orderBy).hint(hint).skip(offset).limit(limit)
-        ).map(e -> (T) mapper.mapToObject(e));
+        ).map(e -> deserialize(e));
     }
 
     protected Optional<T> findOne(DBObject query) {
-        return Optional.ofNullable(snapshots.findOne(query)).map((e) -> (T) mapper.mapToObject(e));
+        return Optional.ofNullable(snapshots.findOne(query)).map((e) -> deserialize(e));
     }
 }

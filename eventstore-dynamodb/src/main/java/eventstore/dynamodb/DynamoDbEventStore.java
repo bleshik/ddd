@@ -52,40 +52,27 @@ public class DynamoDbEventStore extends AbstractEventStore<Item> {
             String tableName,
             long readCapacityUnits,
             long writeCapacityUnits) {
-        this(getTable(client, tableName, readCapacityUnits, writeCapacityUnits), new GsonDynamoDbObjectMapper());
+        this(
+                new ExtendedTable(
+                    client,
+                    tableName,
+                    Arrays.asList(
+                        new AttributeDefinition("streamName", "S"),
+                        new AttributeDefinition("streamVersion", "N")
+                    ),
+                    Arrays.asList(
+                        new KeySchemaElement("streamName", KeyType.HASH),
+                        new KeySchemaElement("streamVersion", KeyType.RANGE)
+                    ),
+                    new ProvisionedThroughput(readCapacityUnits, writeCapacityUnits)
+                ),
+                new GsonDynamoDbObjectMapper()
+        );
     }
 
     public DynamoDbEventStore(Table table, DbObjectMapper<Item> mapper) { 
         super(mapper);
         this.table  = new ExtendedTable(table);
-    }
-
-    private static ExtendedTable getTable(
-            AmazonDynamoDB client,
-            String tableName,
-            long readCapacityUnits,
-            long writeCapacityUnits) {
-        ExtendedTable table = new ExtendedTable(client, tableName);
-        ProvisionedThroughput provisionedThroughput = new ProvisionedThroughput(readCapacityUnits, writeCapacityUnits);
-        if (!table.exists()) {
-            client.createTable(
-                new CreateTableRequest(
-                    Arrays.asList(
-                        new AttributeDefinition("streamName", "S"),
-                        new AttributeDefinition("streamVersion", "N")
-                    ),
-                    tableName,
-                    Arrays.asList(
-                        new KeySchemaElement("streamName", KeyType.HASH),
-                        new KeySchemaElement("streamVersion", KeyType.RANGE)
-                    ),
-                    provisionedThroughput
-                )
-            );
-        } else {
-            table.updateTable(new UpdateTableSpec().withProvisionedThroughput(provisionedThroughput));
-        }
-        return table;
     }
 
     @Override
@@ -103,10 +90,8 @@ public class DynamoDbEventStore extends AbstractEventStore<Item> {
             try {
                 table.putItem(
                     new PutItemSpec()
-                    .withItem(
-                        mapper.mapToDbObject(event.occurred(++nextEventIndex)).withString("streamName", streamName)
-                        )
-                    .withExpected(new Expected("streamName").notExist())
+                        .withItem(mapper.mapToDbObject(event.occurred(++nextEventIndex)).withString("streamName", streamName))
+                        .withExpected(new Expected("streamName").notExist())
                 );
             } catch (ConditionalCheckFailedException e) {
                 throw new ConcurrentModificationException(

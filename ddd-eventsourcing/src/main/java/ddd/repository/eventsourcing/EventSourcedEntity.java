@@ -231,6 +231,9 @@ public abstract class EventSourcedEntity<T extends EventSourcedEntity<T>> implem
         } catch(IllegalAccessException|CloneNotSupportedException e) {
             throw new AssertionError("This shouldn't happen");
         } catch(InvocationTargetException e) {
+            if (e.getCause() instanceof RuntimeException) {
+                throw (RuntimeException) e.getCause();
+            }
             throw new EventSourcingException(String.format("Exception occurred while applying the event %s on the entity %s.", event, this), e.getCause());
         }
     }
