@@ -6,13 +6,13 @@ import java.util.function.Function;
 /**
  * Utility class implementing common logic of mapping POJOs to/from db objects.
  */
-public abstract class JsonDbObjectMapper<T> implements DbObjectMapper<T> {
+public class JsonDbObjectMapper<T> implements DbObjectMapper<T> {
         
 	private final JsonSerde jsonSerde;
     private final Function<T, String> toJson;
     private final Function<String, T> fromJson;
 
-    protected JsonDbObjectMapper(JsonSerde jsonSerde, Function<T, String> toJson, Function<String, T> fromJson) { 
+    public JsonDbObjectMapper(JsonSerde jsonSerde, Function<T, String> toJson, Function<String, T> fromJson) { 
 		this.jsonSerde = jsonSerde;
         this.toJson    = toJson;
         this.fromJson  = fromJson;

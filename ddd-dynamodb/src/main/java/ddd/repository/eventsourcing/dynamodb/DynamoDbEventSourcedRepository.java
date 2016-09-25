@@ -26,8 +26,8 @@ import eventstore.util.dynamodb.GsonDynamoDbObjectMapper;
 import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.Iterator;
-import java.util.Optional;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -37,11 +37,11 @@ import java.util.stream.StreamSupport;
  * you can specify other {@link EventStore}.
  */
 @SuppressWarnings("unchecked")
-public abstract class DynamoDbEventSourcedRepository<T extends EventSourcedEntity<T> & IdentifiedEntity<K>, K> extends EventSourcedRepository<T, K> {
+public abstract class DynamoDbEventSourcedRepository<T extends EventSourcedEntity<T> & IdentifiedEntity<K>, K>
+    extends EventSourcedRepository<T, K, Item, PrimaryKey> {
 
     protected final ExtendedTable table;
     protected final String tableName;
-    protected final DbObjectMapper<Item> mapper;
     protected final ProvisionedThroughput provisionedThroughput;
 
     public DynamoDbEventSourcedRepository(
@@ -53,75 +53,78 @@ public abstract class DynamoDbEventSourcedRepository<T extends EventSourcedEntit
 
     public DynamoDbEventSourcedRepository(
             AmazonDynamoDB client,
+            long readCapacityUnits,
+            long writeCapacityUnits,
+            DbObjectMapper<Item> mapper) {
+        this(client, null, readCapacityUnits, writeCapacityUnits, mapper);
+    }
+
+    public DynamoDbEventSourcedRepository(
+            AmazonDynamoDB client,
+            String tableName,
+            long readCapacityUnits,
+            long writeCapacityUnits,
+            DbObjectMapper<Item> mapper) {
+        this.tableName = tableName != null ? tableName : getClassArgument(0).getSimpleName();
+        this.provisionedThroughput = new ProvisionedThroughput(readCapacityUnits, writeCapacityUnits);
+        this.table = new ExtendedTable(client, this.tableName);
+        initializeTable(table);
+        init(new DynamoDbEventStore(client, this.tableName + "Events", readCapacityUnits, writeCapacityUnits, mapper), mapper);
+    }
+
+    public DynamoDbEventSourcedRepository(
+            AmazonDynamoDB client,
             String tableName,
             long readCapacityUnits,
             long writeCapacityUnits) {
-        this.tableName = tableName != null ? tableName : getClassArgument(0).getSimpleName();
-        this.provisionedThroughput = new ProvisionedThroughput(readCapacityUnits, writeCapacityUnits);
-        this.table = new ExtendedTable(
-            client,
-            this.tableName,
-            getAttributes(),
-            getKey(),
-            provisionedThroughput
-        );
-        this.mapper = new GsonDynamoDbObjectMapper();
-        init(new DynamoDbEventStore(client, this.tableName + "Events", readCapacityUnits, writeCapacityUnits));
+        this(client, tableName, readCapacityUnits, writeCapacityUnits, new GsonDynamoDbObjectMapper());
     }
 
     public DynamoDbEventSourcedRepository(EventStore eventStore, Table table, DbObjectMapper<Item> mapper) {
-        super(eventStore);
+        super(eventStore, mapper);
         this.table     = new ExtendedTable(table);
         this.tableName = table.getTableName();
-        this.mapper    = mapper;
         this.provisionedThroughput = this.table.exists() ?
             this.table.getProvisionedThroughput() :
             new ProvisionedThroughput(25L, 25L);
+        initializeTable(this.table);
     }
 
-    protected List<AttributeDefinition> getAttributes() {
-        return Arrays.asList(
-            new AttributeDefinition("id", Number.class.isAssignableFrom(getClassArgument(1)) ? "N" : "S")
+    protected void initializeTable(ExtendedTable table) {
+        table.createIfNotExists(
+            Arrays.asList(new AttributeDefinition("id", Number.class.isAssignableFrom(getClassArgument(1)) ? "N" : "S")),
+            Arrays.asList(new KeySchemaElement("id", KeyType.HASH)),
+            provisionedThroughput
         );
-    }
-
-    protected List<KeySchemaElement> getKey() {
-        return Arrays.asList(
-            new KeySchemaElement("id", KeyType.HASH)
-        );
-    }
-
-    protected T deserialize(Item dbObject) {
-        return (T) mapper.mapToObject(dbObject);
-    }
-
-    protected Item serialize(T entity) {
-        return mapper.mapToDbObject(entity);
     }
 
     @Override
-    protected void saveSnapshot(T committed, long unmutatedVersion) {
+    protected PrimaryKey toDbId(K id) { return new PrimaryKey("id", id); }
+
+    @Override
+    protected Optional<Item> doGet(PrimaryKey id) {
+        return Optional.ofNullable(table.getItemOutcome(id).getItem());
+    }
+
+    @Override
+    protected Item doSave(Item dbObject, Optional<Long> unmutatedVersion) {
         try {
             table.putItem(
                 new PutItemSpec()
-                    .withItem(serialize(committed))
-                    .withExpected(unmutatedVersion == 0 ? 
+                    .withItem(dbObject)
+                    .withExpected(unmutatedVersion.get() == 0 ? 
                         new Expected("id").notExist() :
-                        new Expected("version").eq(unmutatedVersion)
+                        new Expected("version").eq(unmutatedVersion.get())
                     )
             );
         } catch (ConditionalCheckFailedException e) {
             // ignore, because this means that there is already a saved snapshot with higher version
         }
+        return dbObject;
     }
 
     @Override
-    protected boolean removeSnapshot(K id) {
-        return table.deleteAndCheck(new PrimaryKey("id", id));
-    }
-
-    @Override
-    protected Optional<T> snapshot(K id, long before) {
-        return Optional.ofNullable(table.getItem(new PrimaryKey("id", id))).map((item) -> deserialize(item));
+    protected boolean doRemove(PrimaryKey id) {
+        return table.deleteAndCheck(id);
     }
 }

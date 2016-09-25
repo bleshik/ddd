@@ -27,7 +27,8 @@ import java.util.stream.StreamSupport;
  * Simple MongoDB based repository. It just does the POJO mapping and puts it into the DB.
  */
 @SuppressWarnings("unchecked")
-public abstract class MongoDbRepository<T extends IdentifiedEntity<K>, K> extends AbstractRepository<T, K, DBObject, Object> {
+public abstract class MongoDbRepository<T extends IdentifiedEntity<K>, K>
+    extends AbstractRepository<T, K, DBObject, Object> {
 
     protected DBCollection entityCollection;
 

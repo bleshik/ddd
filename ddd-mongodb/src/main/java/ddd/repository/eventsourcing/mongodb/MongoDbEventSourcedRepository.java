@@ -26,25 +26,25 @@ import java.util.stream.StreamSupport;
  * MongoDB-based event sourced repository. This stores events and snapshots in the same MongoDB database. Optionally,
  * you can specify other {@link EventStore}.
  */
-public abstract class MongoDbEventSourcedRepository<T extends EventSourcedEntity<T> & IdentifiedEntity<K>, K> extends EventSourcedRepository<T, K> {
+public abstract class MongoDbEventSourcedRepository<T extends EventSourcedEntity<T> & IdentifiedEntity<K>, K>
+    extends EventSourcedRepository<T, K, DBObject, Object> {
 
     protected DBCollection snapshots;
-    private DbObjectMapper<DBObject> mapper;
 
     public MongoDbEventSourcedRepository(DBCollection snapshots, EventStore eventStore, DbObjectMapper<DBObject> mapper) {
         init(snapshots, eventStore, mapper);
     }
 
     public MongoDbEventSourcedRepository(DB db, EventStore eventStore) {
-        init(db.getCollection(entityClass().getSimpleName()), eventStore, new GsonMongoDbObjectMapper());
+        init(db.getCollection(entityClass.getSimpleName()), eventStore, new GsonMongoDbObjectMapper());
     }
 
     public MongoDbEventSourcedRepository(DB db) {
-        init(db.getCollection(entityClass().getSimpleName()), new MongoDbEventStore(db.getCollection(entityClass().getSimpleName() + "Events")), new GsonMongoDbObjectMapper());
+        init(db.getCollection(entityClass.getSimpleName()), new MongoDbEventStore(db.getCollection(entityClass.getSimpleName() + "Events")), new GsonMongoDbObjectMapper());
     }
 
     protected void init(DBCollection snapshots, EventStore eventStore, DbObjectMapper<DBObject> mapper) {
-        init(eventStore);
+        init(eventStore, mapper);
         this.snapshots = snapshots;
         this.mapper    = mapper;
         Migration.migrate(() -> {
@@ -53,25 +53,17 @@ public abstract class MongoDbEventSourcedRepository<T extends EventSourcedEntity
         });
     }
 
-    protected T deserialize(DBObject dbObject) {
-        return (T) mapper.mapToObject(dbObject);
-    }
-
-    protected DBObject serialize(T entity) {
-        return mapper.mapToDbObject(entity);
-    }
-
     @Override
-    protected void saveSnapshot(T committed, long unmutatedVersion) {
+    protected DBObject doSave(DBObject dbObject, Optional<Long> unmutatedVersion) {
         try {
             snapshots.findAndModify(
-                    new BasicDBObject("_version", unmutatedVersion).append("id", committed.getId()),
+                    new BasicDBObject("_version", unmutatedVersion.get()).append("id", dbObject.get("id")),
                     null,
                     null,
                     false,
-                    serialize(committed),
+                    dbObject,
                     false,
-                    unmutatedVersion == 0
+                    unmutatedVersion.get() == 0
             );
         } catch(DuplicateKeyException e) {
             if (e.getErrorCode() == 11000) {
@@ -80,18 +72,28 @@ public abstract class MongoDbEventSourcedRepository<T extends EventSourcedEntity
                 throw e;
             }
         }
+        return dbObject;
     }
 
-    protected boolean removeSnapshot(K id) {
+    @Override
+    protected boolean doRemove(Object id) {
         return snapshots.remove(new BasicDBObject("id", id)).getN() > 0;
     }
 
+    /* this method is not used */
+    @Override
+    protected Optional<DBObject> doGet(Object id) { return Optional.empty(); }
+
+    @Override
     protected Optional<T> snapshot(K id, long before) {
         DBObject dbObject = snapshots.findOne(
-                new BasicDBObject("_version", new BasicDBObject("$lte", before < 0 ? Long.MAX_VALUE : before)).append("id", id)
+            new BasicDBObject("_version", new BasicDBObject("$lte", before < 0 ? Long.MAX_VALUE : before)).append("id", toDbId(id))
         );
         return Optional.ofNullable(deserialize(dbObject));
     }
+
+    @Override
+    protected Object toDbId(K id) { return id; }
 
     protected void migrate() {}
 

@@ -52,6 +52,15 @@ public class DynamoDbEventStore extends AbstractEventStore<Item> {
             String tableName,
             long readCapacityUnits,
             long writeCapacityUnits) {
+        this(client, tableName, readCapacityUnits, writeCapacityUnits, new GsonDynamoDbObjectMapper());
+    }
+
+    public DynamoDbEventStore(
+            AmazonDynamoDB client,
+            String tableName,
+            long readCapacityUnits,
+            long writeCapacityUnits,
+            DbObjectMapper<Item> mapper) {
         this(
                 new ExtendedTable(
                     client,
@@ -66,7 +75,7 @@ public class DynamoDbEventStore extends AbstractEventStore<Item> {
                     ),
                     new ProvisionedThroughput(readCapacityUnits, writeCapacityUnits)
                 ),
-                new GsonDynamoDbObjectMapper()
+                mapper
         );
     }
 

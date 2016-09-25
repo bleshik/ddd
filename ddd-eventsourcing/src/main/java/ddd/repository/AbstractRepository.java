@@ -2,6 +2,7 @@ package ddd.repository;
 
 import ddd.repository.IdentifiedEntity;
 import ddd.repository.PersistenceOrientedRepository;
+import ddd.repository.eventsourcing.EventSourcedEntity;
 import eventstore.util.DbObjectMapper;
 import eventstore.util.RuntimeGeneric;
 import eventstore.util.collection.Collections;
@@ -11,13 +12,15 @@ import java.util.Optional;
 @SuppressWarnings("unchecked")
 public abstract class AbstractRepository<T extends IdentifiedEntity<K>, K, D, DK> implements PersistenceOrientedRepository<T, K>, RuntimeGeneric {
 
-    protected final DbObjectMapper<D> mapper;
-    protected final Class<T> entityClass;
+    protected DbObjectMapper<D> mapper;
+    protected Class<T> entityClass;
     public final ClassValue<Optional<Field>> versionField = new ClassValue<Optional<Field>>() {
         @Override
         protected Optional<Field> computeValue(Class<?> type) {
             try {
-                Field versionField = entityClass.getDeclaredField("version");
+                Field versionField = EventSourcedEntity.class.isAssignableFrom(entityClass) ?
+                    EventSourcedEntity.class.getDeclaredField("_version") :
+                    entityClass.getDeclaredField("version");
                 versionField.setAccessible(true);
                 return Optional.ofNullable(versionField);
             } catch (NoSuchFieldException e) {
@@ -36,6 +39,20 @@ public abstract class AbstractRepository<T extends IdentifiedEntity<K>, K, D, DK
         return doGet(toDbId(id)).map((e) -> deserialize(e));
     }
 
+    @Override
+    public T save(T entity) {
+        return deserialize(doSave(serialize(entity), version(entity)));
+    }
+
+    @Override
+    public boolean remove(K id) {
+        return doRemove(toDbId(id));
+    }
+
+    protected abstract D doSave(D dbObject, Optional<Long> currentVersion);
+
+    protected abstract boolean doRemove(DK id);
+
     protected abstract Optional<D> doGet(DK id);
 
     protected abstract DK toDbId(K id);
@@ -47,20 +64,6 @@ public abstract class AbstractRepository<T extends IdentifiedEntity<K>, K, D, DK
     protected D serialize(T entity) {
         return mapper.mapToDbObject(entity);
     }
-
-    @Override
-    public T save(T entity) {
-        return deserialize(doSave(serialize(entity), version(entity)));
-    }
-
-    protected abstract D doSave(D dbObject, Optional<Long> currentVersion);
-
-    @Override
-    public boolean remove(K id) {
-        return doRemove(toDbId(id));
-    }
-
-    protected abstract boolean doRemove(DK id);
 
     private Optional<Long> version(T entity) {
         return versionField.get(entityClass).map((field) -> {

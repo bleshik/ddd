@@ -1,5 +1,6 @@
 package eventstore.util.dynamodb;
 
+import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.document.AttributeUpdate;
 import com.amazonaws.services.dynamodbv2.document.Item;
@@ -76,7 +77,7 @@ public class ExtendedTable extends Table {
             ProvisionedThroughput t) {
         this(client, tableName);
         if (!createIfNotExists(idName, idClass, t)) {
-            updateTable(t);
+            try { updateTable(t); } catch (AmazonServiceException e) {}
         }
     }
 
@@ -88,7 +89,7 @@ public class ExtendedTable extends Table {
             ProvisionedThroughput t) {
         this(client, tableName);
         if (!createIfNotExists(attributes, key, t)) {
-            updateTable(t);
+            try { updateTable(t); } catch (AmazonServiceException e) {}
         }
     }
 

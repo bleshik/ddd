@@ -1,5 +1,6 @@
 package ddd.repository.eventsourcing;
 
+import ddd.repository.AbstractRepository;
 import ddd.repository.IdentifiedEntity;
 import ddd.repository.PersistenceOrientedRepository;
 import ddd.repository.TemporalRepository;
@@ -7,9 +8,11 @@ import ddd.repository.exception.OptimisticLockingException;
 import eventstore.Event;
 import eventstore.EventStore;
 import eventstore.PayloadEvent;
+import eventstore.util.DbObjectMapper;
 import eventstore.util.RuntimeGeneric;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.util.ConcurrentModificationException;
 import java.util.Iterator;
@@ -17,7 +20,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
-import java.lang.reflect.Method;
 
 import static java.util.stream.Collectors.toSet;
 import static java.util.stream.Collectors.toList;
@@ -33,20 +35,25 @@ import static java.util.stream.Collectors.toList;
  * @param K type of the objects' identifiers.
  */
 @SuppressWarnings("unchecked")
-public abstract class EventSourcedRepository<T extends EventSourcedEntity<T> & IdentifiedEntity<K>, K>
+public abstract class EventSourcedRepository<T extends EventSourcedEntity<T> & IdentifiedEntity<K>, K, D, DK>
+    extends AbstractRepository<T, K, D, DK>
     implements TemporalRepository<T, K>, PersistenceOrientedRepository<T, K>, RuntimeGeneric {
 
     protected EventStore eventStore;
 
-    public EventSourcedRepository(EventStore eventStore) { init(eventStore); }
-    protected EventSourcedRepository() {}
-
-    protected void init(EventStore eventStore) {
-        this.eventStore  = eventStore;
+    public EventSourcedRepository(EventStore eventStore, DbObjectMapper<D> mapper) {
+        super(mapper);
+        init(eventStore, mapper);
     }
 
-    private Class<T> _entityClass;
-    public Class<T> entityClass() { return _entityClass != null ? _entityClass : (_entityClass = (Class<T>) getClassArgument(0)); }
+    protected EventSourcedRepository() {
+        super(null);
+    }
+
+    protected void init(EventStore eventStore, DbObjectMapper<D> mapper) {
+        this.eventStore = eventStore;
+        this.mapper     = mapper;
+    }
 
     @Override
     public Optional<T> get(K id) {
@@ -80,15 +87,19 @@ public abstract class EventSourcedRepository<T extends EventSourcedEntity<T> & I
         });
     }
 
-    protected void saveSnapshot(T committed, long unmutatedVersion) {}
+    protected void saveSnapshot(T committed, long unmutatedVersion) {
+        doSave(serialize(committed), Optional.of(unmutatedVersion));
+    }
 
-    protected boolean removeSnapshot(K id) { return false; }
+    protected boolean removeSnapshot(K id) { return doRemove(toDbId(id)); }
 
-    protected Optional<T> snapshot(K id, long before) { return Optional.empty(); }
+    protected Optional<T> snapshot(K id, long before) {
+        return doGet(toDbId(id)).map((i) -> deserialize(i));
+    }
 
     private T initEntity(Event initEvent) {
         try {
-            Map<Class, Constructor> constructors = EventSourcedEntity.constructors.get(entityClass());
+            Map<Class, Constructor> constructors = EventSourcedEntity.constructors.get(entityClass);
             if (constructors.containsKey(initEvent.getClass())) {
                 return (T) constructors.get(initEvent.getClass()).newInstance(initEvent);
             } else if (initEvent instanceof PayloadEvent) {
@@ -151,9 +162,12 @@ public abstract class EventSourcedRepository<T extends EventSourcedEntity<T> & I
             try {
                 for (Event event : entity.getChanges()) {
                     try {
-                        Method handler = EventSourcedEntity.mutatingMethods.get(this.getClass()).get(event.getClass());
+                        Object actualEvent = event instanceof PayloadEvent ? ((PayloadEvent) event).payload : event;
+                        Method handler = EventSourcedEntity.mutatingMethods.get(this.getClass()).get(
+                            actualEvent.getClass()
+                        );
                         if (handler != null && handler.getParameterTypes().length == 2) {
-                            handler.invoke(this, event, entity);
+                            handler.invoke(this, actualEvent, entity);
                         }
                     } catch(IllegalAccessException e) {
                         throw new AssertionError("This shouldn't happen");
@@ -215,6 +229,6 @@ public abstract class EventSourcedRepository<T extends EventSourcedEntity<T> & I
     public boolean contained(K id) { return eventStore.contains(streamName(id)); }
 
     protected String streamName(K id) {
-        return this.entityClass().getSimpleName() + id;
+        return this.entityClass.getSimpleName() + id;
     }
 }
