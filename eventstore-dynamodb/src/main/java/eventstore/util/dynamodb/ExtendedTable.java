@@ -100,17 +100,6 @@ public class ExtendedTable extends Table {
         this(getClient(table), table.getTableName());
     }
 
-    public boolean createIfNotExists(
-            List<AttributeDefinition> attributes,
-            List<KeySchemaElement> key,
-            ProvisionedThroughput t) {
-        if (!exists()) {
-            client.createTable(new CreateTableRequest(attributes, getTableName(), key, t));
-            return true;
-        }
-        return false;
-    }
-
     public boolean createIfNotExists(String idName, Class<?> idClass, ProvisionedThroughput t) {
         return createIfNotExists(
             Arrays.asList(new AttributeDefinition(idName, Number.class.isAssignableFrom(idClass) ? "N" : "S")),
@@ -118,6 +107,22 @@ public class ExtendedTable extends Table {
             t
         );
     }
+
+    public boolean createIfNotExists(
+            List<AttributeDefinition> attributes,
+            List<KeySchemaElement> key,
+            ProvisionedThroughput t) {
+        return createIfNotExists(new CreateTableRequest(attributes, getTableName(), key, t));
+    }
+
+    public boolean createIfNotExists(CreateTableRequest request) {
+        if (!exists()) {
+            client.createTable(request.withTableName(getTableName()));
+            return true;
+        }
+        return false;
+    }
+
 
     public UpdateItemOutcome put(PrimaryKey key, String attribute, Object value) {
         return updateItem(key, new AttributeUpdate(attribute).put(value));
@@ -154,6 +159,14 @@ public class ExtendedTable extends Table {
 
     public Stream<Item> scanStream(ScanSpec scan) {
         return scanStream(scan, false);
+    }
+
+    public Stream<Item> scanStream(boolean all) {
+        return scanStream(new ScanSpec(), all);
+    }
+
+    public Stream<Item> scanStream() {
+        return scanStream(false);
     }
 
     private <T> Iterator<Item> doGetResult(Function<KeyAttribute[], ItemCollection<T>> fetch, boolean all) {
