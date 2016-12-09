@@ -47,7 +47,7 @@ public abstract class DynamoDbRepository<T extends IdentifiedEntity<K>, K>
         super(mapper);
         this.tableName = getClassArgument(0).getSimpleName();
         this.table = new ExtendedTable(client, tableName);
-        initializeTable(this.table);
+        initialize(client);
     }
 
     public DynamoDbRepository(
@@ -67,17 +67,16 @@ public abstract class DynamoDbRepository<T extends IdentifiedEntity<K>, K>
         super(new GsonDynamoDbObjectMapper());
         this.table = new ExtendedTable(client, tableName);
         this.tableName = tableName;
-        initializeTable(this.table);
+        initialize(client);
     }
 
     public DynamoDbRepository(Table table, DbObjectMapper<Item> mapper) {
         super(mapper);
         this.table     = new ExtendedTable(table);
         this.tableName = table.getTableName();
-        initializeTable(this.table);
     }
 
-    protected void initializeTable(ExtendedTable table) {
+    protected void initialize(AmazonDynamoDB client) {
         table.createIfNotExists(
             Arrays.asList(new AttributeDefinition("id", Number.class.isAssignableFrom(getClassArgument(1)) ? "N" : "S")),
             Arrays.asList(new KeySchemaElement("id", KeyType.HASH)),
