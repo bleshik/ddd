@@ -26,3 +26,5 @@ libraryDependencies += "junit" % "junit" % "4.12" % "test"
 // but currently this is used by all the implementations,
 // so we put utility classes in this module
 libraryDependencies += "com.google.code.gson" % "gson" % "2.6.2"
+
+libraryDependencies += "net.dongliu" % "gson-java8-datatype" % "1.0.2"

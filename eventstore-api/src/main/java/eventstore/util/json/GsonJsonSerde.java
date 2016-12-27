@@ -1,6 +1,7 @@
 package eventstore.util.json;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
@@ -9,6 +10,7 @@ import com.google.gson.JsonPrimitive;
 import eventstore.EventStoreException;
 import eventstore.PayloadEvent;
 import java.lang.reflect.Field;
+import net.dongliu.gson.GsonJava8TypeAdapterFactory;
 
 /**
  * {@link Gson} based implementation of the serde interface.
@@ -20,7 +22,7 @@ public class GsonJsonSerde implements JsonSerde {
     private final Field payloadField;
 
     public GsonJsonSerde() {
-        this(new Gson());
+        this(new GsonBuilder().registerTypeAdapterFactory(new GsonJava8TypeAdapterFactory()).create());
     }
 
     public GsonJsonSerde(Gson gson) {

@@ -1,8 +1,10 @@
 package eventstore.util;
 
-import java.util.function.Consumer;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.Optional;
+import java.util.function.BiFunction;
+import java.util.function.Consumer;
 
 /**
  * A handy interface adding a Scala-like "copy" method. For example:
@@ -20,11 +22,25 @@ import java.lang.reflect.Method;
  */
 @SuppressWarnings("unchecked")
 public interface CloneWith<T extends CloneWith> extends Cloneable {
+
     default T cloneWith(Consumer<T> mutate) {
         T cloned = CloneWithHelper.<T>invokeClone((T) this);
         mutate.accept(cloned);
         return cloned;
     }
+
+    default <U> T transformFor(Iterable<U> items, BiFunction<T, U, T> mutateFor) {
+        T mutated = (T) this;
+        for (U item : items) {
+            mutated = mutateFor.apply(mutated, item);
+        }
+        return mutated;
+    }
+
+    default <U> T transformFor(Optional<U> item, BiFunction<T, U, T> mutateFor) {
+        return item.map(i -> mutateFor.apply((T) this, i)).orElse((T) this);
+    }
+
 }
 
 @SuppressWarnings("unchecked")
