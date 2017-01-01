@@ -6,13 +6,13 @@ import ddd.repository.example.domain.ImmutableHouse;
 import eventstore.util.dynamodb.LocalAmazonDynamoDbClient;
 import java.util.*;
 
-public class DynamoDbRepositorySpec extends AbstractHouseRepositorySpec<ImmutableHouse, DynamoDbRepository<ImmutableHouse, String>> {
-    public DynamoDbRepositorySpec() {
+public class DynamoDbRepositoryWithUowSpec extends AbstractHouseRepositorySpec<ImmutableHouse, DynamoDbRepository<ImmutableHouse, String>> {
+    public DynamoDbRepositoryWithUowSpec() {
         super(
                 new DynamoDbRepository<ImmutableHouse, String>(
                     new LocalAmazonDynamoDbClient(9823),
                     UUID.randomUUID().toString(),
-                    Optional.empty() 
+                    Optional.of(new UnitOfWork())
                 ){},
                 new ImmutableHouse("100500 Awesome str., Chicago, USA", 100500, "Alexey Balchunas")
         );

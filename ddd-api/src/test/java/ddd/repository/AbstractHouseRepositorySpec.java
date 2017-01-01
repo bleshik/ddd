@@ -35,6 +35,7 @@ public abstract class AbstractHouseRepositorySpec<T extends House, R extends Per
         }
 
         houseRepository.save(awesomeHouse);
+        houseRepository.flush();
         assertTrue(houseRepository.remove(awesomeHouse.getAddress()));
         assertEquals(Optional.empty(), houseRepository.get(awesomeHouse.getAddress()));
 
@@ -63,7 +64,9 @@ public abstract class AbstractHouseRepositorySpec<T extends House, R extends Per
     @Test(expected = OptimisticLockingException.class)
     public void save() {
         houseRepository.save((T) awesomeHouse.destroy());
+        houseRepository.flush();
         houseRepository.save((T) awesomeHouse.buy("Stepan Stepanov"));
+        houseRepository.flush();
     }
 
 }

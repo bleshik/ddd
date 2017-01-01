@@ -4,6 +4,8 @@ import ddd.repository.AbstractHouseRepositorySpec;
 import ddd.repository.eventsourcing.example.domain.EventSourcedHouse;
 import ddd.repository.example.domain.House;
 import eventstore.util.dynamodb.LocalAmazonDynamoDbClient;
+
+import java.util.Optional;
 import java.util.UUID;
 
 public class DynamoDbEventSourcedRepositorySpec
@@ -14,7 +16,8 @@ public class DynamoDbEventSourcedRepositorySpec
                     new LocalAmazonDynamoDbClient(9823),
                     UUID.randomUUID().toString(),
                     1000,
-                    1000
+                    1000,
+                    Optional.empty()
                 ){},
                 new EventSourcedHouse("100500 Awesome str., Chicago, USA", 100500, "Alexey Balchunas")
         );

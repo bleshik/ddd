@@ -5,6 +5,7 @@ import ddd.repository.IdentifiedEntity;
 import ddd.repository.PersistenceOrientedRepository;
 import ddd.repository.TemporalRepository;
 import ddd.repository.exception.OptimisticLockingException;
+import ddd.repository.UnitOfWork;
 import eventstore.Event;
 import eventstore.EventStore;
 import eventstore.PayloadEvent;
@@ -41,8 +42,8 @@ public abstract class EventSourcedRepository<T extends EventSourcedEntity<T> & I
 
     protected EventStore eventStore;
 
-    public EventSourcedRepository(EventStore eventStore, DbObjectMapper<D> mapper) {
-        super(mapper);
+    public EventSourcedRepository(EventStore eventStore, DbObjectMapper<D> mapper, Optional<UnitOfWork> uow) {
+        super(mapper, uow);
         init(eventStore, mapper);
     }
 
@@ -57,34 +58,30 @@ public abstract class EventSourcedRepository<T extends EventSourcedEntity<T> & I
 
     @Override
     public Optional<T> get(K id) {
-        return get(id, -1);
+        return reading(id, () -> get(id, -1));
     }
 
     private Optional<T> get(K id, long version)  {
         return getByStreamName(streamName(id), version, snapshot(id, version));
     }
 
-    private Optional<T> getByStreamName(String streamName, long version) {
-        return getByStreamName(streamName, version, Optional.empty());
-    }
-
     private Optional<T> getByStreamName(String streamName, long version, Optional<T> snapshot) {
         return eventStore.streamSince(streamName, snapshot.map((e) -> e.getUnmutatedVersion()).orElse(-1L))
             .map(e -> e.iterator())
             .flatMap((events) -> {
-            if (!events.hasNext()) {
-                return snapshot;
-            }
-            T entity = (T) (snapshot.isPresent() ? snapshot.get() : initEntity(events.next()));
-            while (entity.getMutatedVersion() != version && events.hasNext()) {
-                Event event = events.next();
-                if (event instanceof RemovedEvent) {
-                    return Optional.empty();
+                if (!events.hasNext()) {
+                    return snapshot;
                 }
-                entity = entity.apply(event);
-            }
-            return Optional.of(entity.commitChanges());
-        });
+                T entity = (T) (snapshot.isPresent() ? snapshot.get() : initEntity(events.next()));
+                while (entity.getMutatedVersion() != version && events.hasNext()) {
+                    Event event = events.next();
+                    if (event instanceof RemovedEvent) {
+                        return Optional.empty();
+                    }
+                    entity = entity.apply(event);
+                }
+                return Optional.of(entity.commitChanges());
+            });
     }
 
     protected void saveSnapshot(T committed, long unmutatedVersion) {
@@ -159,65 +156,70 @@ public abstract class EventSourcedRepository<T extends EventSourcedEntity<T> & I
         if (entity.getChanges().isEmpty()){
             return entity;
         } else {
-            try {
-                for (Event event : entity.getChanges()) {
-                    try {
-                        Object actualEvent = event instanceof PayloadEvent ? ((PayloadEvent) event).payload : event;
-                        Method handler = EventSourcedEntity.mutatingMethods.get(this.getClass()).get(
-                            actualEvent.getClass()
-                        );
-                        if (handler != null && handler.getParameterTypes().length == 2) {
-                            handler.invoke(this, actualEvent, entity);
-                        }
-                    } catch(IllegalAccessException e) {
-                        throw new AssertionError("This shouldn't happen");
-                    } catch(InvocationTargetException e) {
-                        throw new EventSourcingException(
-                                String.format("Exception occurred while handling the event %s.", event), e.getCause());
-                    }
-                }
-                eventStore.append(streamName(entity.getId()), entity.getUnmutatedVersion(), entity.getChanges());
-                T committed = entity.commitChanges();
-                saveSnapshot(committed, entity.getUnmutatedVersion());
-                return committed;
-            } catch (ConcurrentModificationException e) {
+            return saving(entity, () -> {
                 try {
-                    T freshEntity = getAndApply(entity.getId(), entity.getUnmutatedVersion(), entity.getChanges().stream()).get();
-                    if (freshEntity.getUnmutatedVersion() == entity.getUnmutatedVersion()) {
-                        throw new IllegalStateException(
-                                String.format(
-                                    "Couldn't resolve the conflict, the saved entity %s (%s, %s), but got fresh %s (%s).",
-                                    entity,
-                                    entity.getUnmutatedVersion(),
-                                    entity.getChanges(),
-                                    freshEntity,
-                                    eventStore.version(streamName(entity.getId()))), e);
+                    for (Event event : entity.getChanges()) {
+                        try {
+                            Object actualEvent = event instanceof PayloadEvent ? ((PayloadEvent) event).payload : event;
+                            Method handler = EventSourcedEntity.mutatingMethods.get(this.getClass()).get(
+                                    actualEvent.getClass()
+                            );
+                            if (handler != null && handler.getParameterTypes().length == 2) {
+                                handler.invoke(this, actualEvent, entity);
+                            }
+                        } catch (IllegalAccessException e) {
+                            throw new AssertionError("This shouldn't happen");
+                        } catch (InvocationTargetException e) {
+                            throw new EventSourcingException(
+                                    String.format("Exception occurred while handling the event %s.", event), e.getCause());
+                        }
                     }
-                    return save(freshEntity);
-                } catch (Exception esException) {
-                    throw new OptimisticLockingException("Couldn't resolve the conflict", esException);
+                    eventStore.append(streamName(entity.getId()), entity.getUnmutatedVersion(), entity.getChanges());
+                    T committed = entity.commitChanges();
+                    saveSnapshot(committed, entity.getUnmutatedVersion());
+                    return committed;
+                } catch (ConcurrentModificationException e) {
+                    try {
+                        T freshEntity = getAndApply(entity.getId(), entity.getUnmutatedVersion(), entity.getChanges().stream()).get();
+                        if (freshEntity.getUnmutatedVersion() == entity.getUnmutatedVersion()) {
+                            throw new IllegalStateException(
+                                    String.format(
+                                            "Couldn't resolve the conflict, the saved entity %s (%s, %s), but got fresh %s (%s).",
+                                            entity,
+                                            entity.getUnmutatedVersion(),
+                                            entity.getChanges(),
+                                            freshEntity,
+                                            eventStore.version(streamName(entity.getId()))), e);
+                        }
+                        return save(freshEntity);
+                    } catch (Exception esException) {
+                        throw new OptimisticLockingException("Couldn't resolve the conflict", esException);
+                    }
                 }
-            }
+            });
         }
     }
 
     @Override
     public long size() {
+        flush();
         return eventStore.size();
     }
 
     @Override
     public boolean remove(K id) {
-        if (!contains(id)) {
-            return false;
-        }
-        try {
-            eventStore.append(streamName(id), new RemovedEvent<K>(id));
-            removeSnapshot(id);
-            return true;
-        } catch(ConcurrentModificationException e) {
-            return remove(id);
-        }
+        return removing(id, () -> {
+            if (!contains(id)) {
+                return false;
+            }
+            try {
+                eventStore.append(streamName(id), new RemovedEvent<K>(id));
+                removeSnapshot(id);
+                return true;
+            } catch (ConcurrentModificationException e) {
+                return remove(id);
+            }
+        });
     }
 
     /**
@@ -226,7 +228,7 @@ public abstract class EventSourcedRepository<T extends EventSourcedEntity<T> & I
      * @return true, if it contained the entity.
      */
     @Override
-    public boolean contained(K id) { return eventStore.contains(streamName(id)); }
+    public boolean contained(K id) { flush(); return eventStore.contains(streamName(id)); }
 
     protected String streamName(K id) {
         return this.entityClass.getSimpleName() + id;

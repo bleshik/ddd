@@ -6,11 +6,11 @@ import ddd.repository.eventsourcing.example.domain.EventSourcedHouse;
 import ddd.repository.UnitOfWork;
 import java.util.Optional;
 
-public class EventSourcedRepositorySpec
+public class EventSourcedRepositoryWithUowSpec
     extends AbstractHouseRepositorySpec<EventSourcedHouse, EventStoreBasedRepository<EventSourcedHouse, String>> {
-    public EventSourcedRepositorySpec() {
+    public EventSourcedRepositoryWithUowSpec() {
         super(
-                new EventStoreBasedRepository<EventSourcedHouse, String>(new InMemoryEventStore(), Optional.empty()) {},
+                new EventStoreBasedRepository<EventSourcedHouse, String>(new InMemoryEventStore(), Optional.of(new UnitOfWork())) {},
                 new EventSourcedHouse("100500 Awesome str., Chicago, USA", 100500, "Alexey Balchunas")
         );
     }

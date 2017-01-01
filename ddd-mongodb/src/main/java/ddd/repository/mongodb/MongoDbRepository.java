@@ -9,6 +9,7 @@ import com.mongodb.MongoCommandException;
 import ddd.repository.AbstractRepository;
 import ddd.repository.IdentifiedEntity;
 import ddd.repository.PersistenceOrientedRepository;
+import ddd.repository.UnitOfWork;
 import ddd.repository.exception.OptimisticLockingException;
 import eventstore.util.DbObjectMapper;
 import eventstore.util.RuntimeGeneric;
@@ -32,18 +33,18 @@ public abstract class MongoDbRepository<T extends IdentifiedEntity<K>, K>
 
     protected DBCollection entityCollection;
 
-    public MongoDbRepository(DBCollection entityCollection, DbObjectMapper<DBObject> mapper) {
-        super(mapper);
+    public MongoDbRepository(DBCollection entityCollection, DbObjectMapper<DBObject> mapper, Optional<UnitOfWork> uow) {
+        super(mapper, uow);
         init(entityCollection, mapper);
     }
 
-    public MongoDbRepository(DB db, DbObjectMapper<DBObject> mapper) {
-        super(mapper);
+    public MongoDbRepository(DB db, DbObjectMapper<DBObject> mapper, Optional<UnitOfWork> uow) {
+        super(mapper, uow);
         init(db.getCollection(((Class<T>) getClassArgument(0)).getSimpleName()), mapper);
     }
 
-    public MongoDbRepository(DB db) {
-        this(db, new GsonMongoDbObjectMapper());
+    public MongoDbRepository(DB db, Optional<UnitOfWork> uow) {
+        this(db, new GsonMongoDbObjectMapper(), uow);
     }
 
     protected void init(DBCollection entityCollection, DbObjectMapper<DBObject> mapper) {
@@ -64,7 +65,7 @@ public abstract class MongoDbRepository<T extends IdentifiedEntity<K>, K>
     protected Object toDbId(K id) { return id; }
 
     @Override
-    public long size() { return entityCollection.count(); }
+    public long size() { flush(); return entityCollection.count(); }
 
     @Override
     protected DBObject doSave(DBObject dbObject, Optional<Long> currentVersion) {

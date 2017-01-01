@@ -15,6 +15,7 @@ import com.amazonaws.services.dynamodbv2.model.KeyType;
 import com.amazonaws.services.dynamodbv2.model.ProvisionedThroughput;
 import com.amazonaws.services.dynamodbv2.model.ReturnValue;
 import ddd.repository.IdentifiedEntity;
+import ddd.repository.UnitOfWork;
 import ddd.repository.eventsourcing.EventSourcedEntity;
 import ddd.repository.eventsourcing.EventSourcedRepository;
 import eventstore.EventStore;
@@ -47,16 +48,18 @@ public abstract class DynamoDbEventSourcedRepository<T extends EventSourcedEntit
     public DynamoDbEventSourcedRepository(
             AmazonDynamoDB client,
             long readCapacityUnits,
-            long writeCapacityUnits) {
-        this(client, null, readCapacityUnits, writeCapacityUnits);
+            long writeCapacityUnits,
+            Optional<UnitOfWork> uow) {
+        this(client, null, readCapacityUnits, writeCapacityUnits, uow);
     }
 
     public DynamoDbEventSourcedRepository(
             AmazonDynamoDB client,
             long readCapacityUnits,
             long writeCapacityUnits,
-            DbObjectMapper<Item> mapper) {
-        this(client, null, readCapacityUnits, writeCapacityUnits, mapper);
+            DbObjectMapper<Item> mapper,
+            Optional<UnitOfWork> uow) {
+        this(client, null, readCapacityUnits, writeCapacityUnits, mapper, uow);
     }
 
     public DynamoDbEventSourcedRepository(
@@ -64,10 +67,12 @@ public abstract class DynamoDbEventSourcedRepository<T extends EventSourcedEntit
             String tableName,
             long readCapacityUnits,
             long writeCapacityUnits,
-            DbObjectMapper<Item> mapper) {
+            DbObjectMapper<Item> mapper,
+            Optional<UnitOfWork> uow) {
         this.tableName = tableName != null ? tableName : getClassArgument(0).getSimpleName();
         this.provisionedThroughput = new ProvisionedThroughput(readCapacityUnits, writeCapacityUnits);
         this.table = new ExtendedTable(client, this.tableName);
+        this.unitOfWork = uow;
         initializeTable(table);
         init(new DynamoDbEventStore(client, this.tableName + "Events", readCapacityUnits, writeCapacityUnits, mapper), mapper);
     }
@@ -76,12 +81,13 @@ public abstract class DynamoDbEventSourcedRepository<T extends EventSourcedEntit
             AmazonDynamoDB client,
             String tableName,
             long readCapacityUnits,
-            long writeCapacityUnits) {
-        this(client, tableName, readCapacityUnits, writeCapacityUnits, new GsonDynamoDbObjectMapper());
+            long writeCapacityUnits,
+            Optional<UnitOfWork> uow) {
+        this(client, tableName, readCapacityUnits, writeCapacityUnits, new GsonDynamoDbObjectMapper(), uow);
     }
 
-    public DynamoDbEventSourcedRepository(EventStore eventStore, Table table, DbObjectMapper<Item> mapper) {
-        super(eventStore, mapper);
+    public DynamoDbEventSourcedRepository(EventStore eventStore, Table table, DbObjectMapper<Item> mapper, Optional<UnitOfWork> uow) {
+        super(eventStore, mapper, uow);
         this.table     = new ExtendedTable(table);
         this.tableName = table.getTableName();
         this.provisionedThroughput = this.table.exists() ?

@@ -17,6 +17,7 @@ import com.amazonaws.services.dynamodbv2.model.ReturnValue;
 import ddd.repository.AbstractRepository;
 import ddd.repository.IdentifiedEntity;
 import ddd.repository.PersistenceOrientedRepository;
+import ddd.repository.UnitOfWork;
 import ddd.repository.exception.OptimisticLockingException;
 import eventstore.util.DbObjectMapper;
 import eventstore.util.RuntimeGeneric;
@@ -29,49 +30,41 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
 
+import static java.util.stream.Collectors.toSet;
+
 /**
  * Simple DynamoDB based repository. It just does the POJO mapping and puts it into the DB.
  */
 @SuppressWarnings("unchecked")
 public abstract class DynamoDbRepository<T extends IdentifiedEntity<K>, K>
     extends AbstractRepository<T, K, Item, PrimaryKey> {
-
     protected final ExtendedTable table;
     protected final String tableName;
 
-    public DynamoDbRepository(AmazonDynamoDB client) {
-        this(client, new GsonDynamoDbObjectMapper());
+    public DynamoDbRepository(AmazonDynamoDB client, Optional<UnitOfWork> uof) {
+        this(client, new GsonDynamoDbObjectMapper(), uof);
     }
 
-    public DynamoDbRepository(AmazonDynamoDB client, DbObjectMapper<Item> mapper) {
-        super(mapper);
+    public DynamoDbRepository(AmazonDynamoDB client, DbObjectMapper<Item> mapper, Optional<UnitOfWork> uof) {
+        super(mapper, uof);
         this.tableName = getClassArgument(0).getSimpleName();
         this.table = new ExtendedTable(client, tableName);
         initialize(client);
     }
 
-    public DynamoDbRepository(
-            AmazonDynamoDB client,
-            String tableName,
-            long readCapacityUnits,
-            long writeCapacityUnits) {
-        this(client, tableName, readCapacityUnits, writeCapacityUnits, new GsonDynamoDbObjectMapper());
+    public DynamoDbRepository(AmazonDynamoDB client, String tableName, Optional<UnitOfWork> uof) {
+        this(client, tableName, new GsonDynamoDbObjectMapper(), uof);
     }
 
-    public DynamoDbRepository(
-            AmazonDynamoDB client,
-            String tableName,
-            long readCapacityUnits,
-            long writeCapacityUnits,
-            DbObjectMapper<Item> mapper) {
-        super(new GsonDynamoDbObjectMapper());
+    public DynamoDbRepository(AmazonDynamoDB client, String tableName, DbObjectMapper<Item> mapper, Optional<UnitOfWork> uof) {
+        super(mapper, uof);
         this.table = new ExtendedTable(client, tableName);
         this.tableName = tableName;
         initialize(client);
     }
 
-    public DynamoDbRepository(Table table, DbObjectMapper<Item> mapper) {
-        super(mapper);
+    public DynamoDbRepository(Table table, DbObjectMapper<Item> mapper, Optional<UnitOfWork> uof) {
+        super(mapper, uof);
         this.table     = new ExtendedTable(table);
         this.tableName = table.getTableName();
     }
@@ -93,7 +86,7 @@ public abstract class DynamoDbRepository<T extends IdentifiedEntity<K>, K>
     }
 
     @Override
-    public long size() { return table.count(); }
+    public long size() { flush(); return table.count(); }
 
     @Override
     protected Item doSave(Item dbObject, Optional<Long> currentVersion) {

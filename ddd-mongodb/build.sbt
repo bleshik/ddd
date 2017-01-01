@@ -4,6 +4,8 @@ version := "1.0"
 
 scalaVersion := "2.11.8"
 
+testOptions += Tests.Argument(TestFrameworks.JUnit, "-v", "-a")
+
 lazy val eventstoreMongodb = RootProject(file("../eventstore-mongodb"))
 
 lazy val eventsourcing = RootProject(file("../ddd-eventsourcing"))
