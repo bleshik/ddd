@@ -1,13 +1,15 @@
 package ddd.repository;
 
-import ddd.repository.TemporalRepository;
 import ddd.repository.PersistenceOrientedRepository;
-import org.junit.runners.JUnit4;
-import org.junit.runner.RunWith;
-import org.junit.Test;
-import java.util.Optional;
+import ddd.repository.TemporalRepository;
 import ddd.repository.example.domain.House;
 import ddd.repository.exception.OptimisticLockingException;
+import ddd.repository.UnitOfWork;
+import java.util.Optional;
+import java.util.function.Supplier;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -69,4 +71,8 @@ public abstract class AbstractHouseRepositorySpec<T extends House, R extends Per
         houseRepository.flush();
     }
 
+    protected static Supplier<UnitOfWork> uowSupplier() {
+        UnitOfWork uow = new UnitOfWork();
+        return () -> uow;
+    }
 }

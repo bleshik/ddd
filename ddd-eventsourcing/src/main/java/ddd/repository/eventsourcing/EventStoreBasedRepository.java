@@ -2,14 +2,15 @@ package ddd.repository.eventsourcing;
 
 import ddd.repository.AbstractRepository;
 import ddd.repository.IdentifiedEntity;
-import ddd.repository.eventsourcing.EventSourcedEntity;
 import ddd.repository.UnitOfWork;
+import ddd.repository.eventsourcing.EventSourcedEntity;
 import eventstore.EventStore;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 public abstract class EventStoreBasedRepository<T extends EventSourcedEntity<T> & IdentifiedEntity<K>, K>
     extends EventSourcedRepository<T, K, Object, Object> {
-    public EventStoreBasedRepository(EventStore eventStore, Optional<UnitOfWork> uow) {
+    public EventStoreBasedRepository(EventStore eventStore, Optional<Supplier<UnitOfWork>> uow) {
         super(eventStore, null, uow);
     }
 

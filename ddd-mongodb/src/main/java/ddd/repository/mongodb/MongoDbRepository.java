@@ -21,6 +21,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.WeakHashMap;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -33,17 +34,17 @@ public abstract class MongoDbRepository<T extends IdentifiedEntity<K>, K>
 
     protected DBCollection entityCollection;
 
-    public MongoDbRepository(DBCollection entityCollection, DbObjectMapper<DBObject> mapper, Optional<UnitOfWork> uow) {
+    public MongoDbRepository(DBCollection entityCollection, DbObjectMapper<DBObject> mapper, Optional<Supplier<UnitOfWork>> uow) {
         super(mapper, uow);
         init(entityCollection, mapper);
     }
 
-    public MongoDbRepository(DB db, DbObjectMapper<DBObject> mapper, Optional<UnitOfWork> uow) {
+    public MongoDbRepository(DB db, DbObjectMapper<DBObject> mapper, Optional<Supplier<UnitOfWork>> uow) {
         super(mapper, uow);
         init(db.getCollection(((Class<T>) getClassArgument(0)).getSimpleName()), mapper);
     }
 
-    public MongoDbRepository(DB db, Optional<UnitOfWork> uow) {
+    public MongoDbRepository(DB db, Optional<Supplier<UnitOfWork>> uow) {
         this(db, new GsonMongoDbObjectMapper(), uow);
     }
 

@@ -22,7 +22,7 @@ public class GsonJsonSerde implements JsonSerde {
     private final Field payloadField;
 
     public GsonJsonSerde() {
-        this(new GsonBuilder().registerTypeAdapterFactory(new GsonJava8TypeAdapterFactory()).create());
+        this(new GsonBuilder().registerTypeAdapterFactory(new GsonJava8TypeAdapterFactory()).serializeNulls().create());
     }
 
     public GsonJsonSerde(Gson gson) {
@@ -43,7 +43,7 @@ public class GsonJsonSerde implements JsonSerde {
         }
         JsonObject data = (JsonObject) parser.parse(json);
         try {
-            Object obj = gson.fromJson(data, Class.forName(data.get("type").getAsString()));
+            Object obj = gson.fromJson(data, Class.forName(data.get("@type").getAsString()));
             if (obj instanceof PayloadEvent) {
                 payloadField.set(obj, gson.fromJson(data.get("payload"), Class.forName(data.get("payloadType").getAsString())));
             }
@@ -56,7 +56,7 @@ public class GsonJsonSerde implements JsonSerde {
     @Override
     public String serialize(Object obj) {
         JsonObject dataElement = gson.toJsonTree(obj).getAsJsonObject();
-        dataElement.add("type", new JsonPrimitive(obj.getClass().getCanonicalName()));
+        dataElement.add("@type", new JsonPrimitive(obj.getClass().getCanonicalName()));
         if (obj instanceof PayloadEvent) {
             dataElement.add("payloadType",new JsonPrimitive(((PayloadEvent) obj).payload.getClass().getCanonicalName()));
         }

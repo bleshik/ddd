@@ -12,7 +12,7 @@ public class DynamoDbRepositoryWithUowSpec extends AbstractHouseRepositorySpec<I
                 new DynamoDbRepository<ImmutableHouse, String>(
                     new LocalAmazonDynamoDbClient(9823),
                     UUID.randomUUID().toString(),
-                    Optional.of(new UnitOfWork())
+                    Optional.of(uowSupplier())
                 ){},
                 new ImmutableHouse("100500 Awesome str., Chicago, USA", 100500, "Alexey Balchunas")
         );

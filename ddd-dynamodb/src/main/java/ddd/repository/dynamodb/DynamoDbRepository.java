@@ -29,6 +29,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 import static java.util.stream.Collectors.toSet;
 
@@ -41,29 +42,29 @@ public abstract class DynamoDbRepository<T extends IdentifiedEntity<K>, K>
     protected final ExtendedTable table;
     protected final String tableName;
 
-    public DynamoDbRepository(AmazonDynamoDB client, Optional<UnitOfWork> uof) {
+    public DynamoDbRepository(AmazonDynamoDB client, Optional<Supplier<UnitOfWork>> uof) {
         this(client, new GsonDynamoDbObjectMapper(), uof);
     }
 
-    public DynamoDbRepository(AmazonDynamoDB client, DbObjectMapper<Item> mapper, Optional<UnitOfWork> uof) {
+    public DynamoDbRepository(AmazonDynamoDB client, DbObjectMapper<Item> mapper, Optional<Supplier<UnitOfWork>> uof) {
         super(mapper, uof);
         this.tableName = getClassArgument(0).getSimpleName();
         this.table = new ExtendedTable(client, tableName);
         initialize(client);
     }
 
-    public DynamoDbRepository(AmazonDynamoDB client, String tableName, Optional<UnitOfWork> uof) {
+    public DynamoDbRepository(AmazonDynamoDB client, String tableName, Optional<Supplier<UnitOfWork>> uof) {
         this(client, tableName, new GsonDynamoDbObjectMapper(), uof);
     }
 
-    public DynamoDbRepository(AmazonDynamoDB client, String tableName, DbObjectMapper<Item> mapper, Optional<UnitOfWork> uof) {
+    public DynamoDbRepository(AmazonDynamoDB client, String tableName, DbObjectMapper<Item> mapper, Optional<Supplier<UnitOfWork>> uof) {
         super(mapper, uof);
         this.table = new ExtendedTable(client, tableName);
         this.tableName = tableName;
         initialize(client);
     }
 
-    public DynamoDbRepository(Table table, DbObjectMapper<Item> mapper, Optional<UnitOfWork> uof) {
+    public DynamoDbRepository(Table table, DbObjectMapper<Item> mapper, Optional<Supplier<UnitOfWork>> uof) {
         super(mapper, uof);
         this.table     = new ExtendedTable(table);
         this.tableName = table.getTableName();

@@ -2,7 +2,7 @@ name := "Event Sourcing"
 
 version := "1.0"
 
-scalaVersion := "2.11.8"
+scalaVersion in ThisBuild := "2.11.8"
 
 testOptions += Tests.Argument(TestFrameworks.JUnit, "-v", "-a")
 

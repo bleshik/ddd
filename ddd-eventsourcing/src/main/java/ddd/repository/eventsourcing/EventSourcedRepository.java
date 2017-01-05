@@ -4,8 +4,8 @@ import ddd.repository.AbstractRepository;
 import ddd.repository.IdentifiedEntity;
 import ddd.repository.PersistenceOrientedRepository;
 import ddd.repository.TemporalRepository;
-import ddd.repository.exception.OptimisticLockingException;
 import ddd.repository.UnitOfWork;
+import ddd.repository.exception.OptimisticLockingException;
 import eventstore.Event;
 import eventstore.EventStore;
 import eventstore.PayloadEvent;
@@ -20,6 +20,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.toSet;
@@ -42,7 +43,7 @@ public abstract class EventSourcedRepository<T extends EventSourcedEntity<T> & I
 
     protected EventStore eventStore;
 
-    public EventSourcedRepository(EventStore eventStore, DbObjectMapper<D> mapper, Optional<UnitOfWork> uow) {
+    public EventSourcedRepository(EventStore eventStore, DbObjectMapper<D> mapper, Optional<Supplier<UnitOfWork>> uow) {
         super(mapper, uow);
         init(eventStore, mapper);
     }

@@ -5,58 +5,66 @@ import java.util.*;
 public class UnitOfWork implements AutoCloseable {
     private boolean flushing = false;
     // repositories put entities they've read  here
-    private final Map<PersistenceOrientedRepository, Map> cache = new IdentityHashMap<>();
+    private final Map<Class<? extends PersistenceOrientedRepository>, Map> cache = new IdentityHashMap<>();
     // put last version of all changed entities (except deleted ones)
-    private final Map<PersistenceOrientedRepository, Map> changed = new IdentityHashMap<>();
+    private final Map<Class<? extends PersistenceOrientedRepository>, Map> changed = new IdentityHashMap<>();
     // all deleted entities
-    private final Map<PersistenceOrientedRepository, Set> removed = new IdentityHashMap<>();
+    private final Map<Class<? extends PersistenceOrientedRepository>, Set> removed = new IdentityHashMap<>();
+    private final Map<Class<? extends PersistenceOrientedRepository>, PersistenceOrientedRepository> repositories = new HashMap<>();
 
     public void begin() {
         clear();
     }
 
     public <T extends IdentifiedEntity<K>, K, R extends PersistenceOrientedRepository<T, K>> Optional<T> get(R r, K id) {
-        return Optional.ofNullable(cache.get(r)).flatMap(map -> Optional.ofNullable((T) map.get(id)));
+        return Optional.ofNullable(cache.get(r.getClass())).flatMap(map -> Optional.ofNullable((T) map.get(id)));
     }
 
     public <T extends IdentifiedEntity<K>, K, R extends PersistenceOrientedRepository<T, K>> boolean isRemoved(R r, K id) {
-        return Optional.ofNullable(removed.get(r)).map(set -> set.contains(id)).orElse(false);
+        return Optional.ofNullable(removed.get(r.getClass())).map(set -> set.contains(id)).orElse(false);
     }
 
     public <T extends IdentifiedEntity<K>, K, R extends PersistenceOrientedRepository<T, K>> void register(R r, T entity) {
+        Class<? extends PersistenceOrientedRepository> rClass = r.getClass();
         // okay, someone registers an entity, but we know it was changed already and not flushed, seems like a bug
-        if (Optional.ofNullable(changed.get(r)).map(map -> map.containsKey(entity.getId())).orElse(false)) {
-            throw new IllegalStateException("Entity (" + r +") " + entity.getId() + " was changed already");
+        if (Optional.ofNullable(changed.get(rClass)).map(map -> map.containsKey(entity.getId())).orElse(false)) {
+            throw new IllegalStateException("Entity (" + rClass +") " + entity.getId() + " was changed already");
         }
         putToCache(r, entity);
     }
 
     public <T extends IdentifiedEntity<K>, K, R extends PersistenceOrientedRepository<T, K>> void changed(R r, T entity) {
-        if (!changed.containsKey(r)) {
-            changed.put(r, new HashMap<>());
+        Class<? extends PersistenceOrientedRepository> rClass = r.getClass();
+        if (!changed.containsKey(rClass)) {
+            changed.put(rClass, new HashMap<>());
         }
-        changed.get(r).put(entity.getId(), entity);
+        repositories.putIfAbsent(rClass, r);
+        changed.get(rClass).put(entity.getId(), entity);
         putToCache(r, entity);
     }
 
     private <T extends IdentifiedEntity<K>, K, R extends PersistenceOrientedRepository<T, K>> void putToCache(R r, T entity) {
-        if (!cache.containsKey(r)) {
-            cache.put(r, new HashMap<>());
+        Class<? extends PersistenceOrientedRepository> rClass = r.getClass();
+        if (!cache.containsKey(rClass)) {
+            cache.put(rClass, new HashMap<>());
         }
-        cache.get(r).put(entity.getId(), entity);
-        Optional.ofNullable(removed.get(r)).ifPresent(set -> set.remove(entity.getId()));
+        repositories.putIfAbsent(rClass, r);
+        cache.get(rClass).put(entity.getId(), entity);
+        Optional.ofNullable(removed.get(rClass)).ifPresent(set -> set.remove(entity.getId()));
     }
 
     public <T extends IdentifiedEntity<K>, K, R extends PersistenceOrientedRepository<T, K>> void removed(R r, K id) {
-        if (!removed.containsKey(r)) {
-            removed.put(r, new HashSet<>());
+        Class<? extends PersistenceOrientedRepository> rClass = r.getClass();
+        if (!removed.containsKey(rClass)) {
+            removed.put(rClass, new HashSet<>());
         }
-        if (removed.get(r).contains(id)) {
+        if (removed.get(rClass).contains(id)) {
             throw new IllegalStateException("Entity (" + r +") " + id + " was removed already");
         }
-        Optional.ofNullable(cache.get(r)).ifPresent(map -> map.remove(id));
-        Optional.ofNullable(changed.get(r)).ifPresent(map -> map.remove(id));
-        removed.get(r).add(id);
+        repositories.putIfAbsent(rClass, r);
+        Optional.ofNullable(cache.get(rClass)).ifPresent(map -> map.remove(id));
+        Optional.ofNullable(changed.get(rClass)).ifPresent(map -> map.remove(id));
+        removed.get(rClass).add(id);
     }
 
     public boolean isFlushing() {
@@ -74,11 +82,13 @@ public class UnitOfWork implements AutoCloseable {
     private void doFlush(Optional<? extends PersistenceOrientedRepository> r) {
         try {
             flushing = true;
-            for (PersistenceOrientedRepository repository : r.map(Collections::singleton).orElse(changed.keySet())) {
-                Optional.ofNullable(changed.get(repository)).map(Map::values).ifPresent(repository::saveAll);
-            }
-            for (PersistenceOrientedRepository repository : r.map(Collections::singleton).orElse(removed.keySet())) {
-                Optional.ofNullable(removed.get(repository)).ifPresent(repository::removeAll);
+            Collection<? extends PersistenceOrientedRepository> repos = r.map(repo ->
+                    (Collection<PersistenceOrientedRepository>) Collections.singleton(repo)
+            ).orElse(repositories.values());
+            for (PersistenceOrientedRepository repository : repos) {
+                Class<? extends PersistenceOrientedRepository> rClass = repository.getClass();
+                Optional.ofNullable(changed.get(rClass)).map(Map::values).ifPresent(repository::saveAll);
+                Optional.ofNullable(removed.get(rClass)).ifPresent(repository::removeAll);
             }
             clear(r);
         } finally {
@@ -93,13 +103,15 @@ public class UnitOfWork implements AutoCloseable {
 
     private void clear(Optional<? extends PersistenceOrientedRepository> r) {
         if (r.isPresent()) {
-            cache.remove(r.get());
-            changed.remove(r.get());
-            removed.remove(r.get());
+            cache.remove(r.get().getClass());
+            changed.remove(r.get().getClass());
+            removed.remove(r.get().getClass());
+            repositories.remove(r.get().getClass());
         } else {
             cache.clear();
             changed.clear();
             removed.clear();
+            repositories.clear();
         }
     }
 

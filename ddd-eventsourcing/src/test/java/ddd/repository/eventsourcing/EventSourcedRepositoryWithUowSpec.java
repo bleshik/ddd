@@ -10,7 +10,7 @@ public class EventSourcedRepositoryWithUowSpec
     extends AbstractHouseRepositorySpec<EventSourcedHouse, EventStoreBasedRepository<EventSourcedHouse, String>> {
     public EventSourcedRepositoryWithUowSpec() {
         super(
-                new EventStoreBasedRepository<EventSourcedHouse, String>(new InMemoryEventStore(), Optional.of(new UnitOfWork())) {},
+                new EventStoreBasedRepository<EventSourcedHouse, String>(new InMemoryEventStore(), Optional.of(uowSupplier())) {},
                 new EventSourcedHouse("100500 Awesome str., Chicago, USA", 100500, "Alexey Balchunas")
         );
     }

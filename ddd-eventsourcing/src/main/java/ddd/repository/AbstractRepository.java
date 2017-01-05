@@ -10,20 +10,23 @@ import java.lang.reflect.Field;
 import java.util.Collection;
 import java.util.Optional;
 import java.util.concurrent.Callable;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 @SuppressWarnings("unchecked")
 public abstract class AbstractRepository<T extends IdentifiedEntity<K>, K, D, DK> implements PersistenceOrientedRepository<T, K>, RuntimeGeneric {
 
-    protected Optional<UnitOfWork> unitOfWork = Optional.empty();
+    protected Optional<Supplier<UnitOfWork>> unitOfWork = Optional.empty();
     protected DbObjectMapper<D> mapper;
     protected Class<T> entityClass;
-    public final ClassValue<Optional<Field>> versionField = new ClassValue<Optional<Field>>() {
+
+    public static final ClassValue<Optional<Field>> versionField = new ClassValue<Optional<Field>>() {
         @Override
         protected Optional<Field> computeValue(Class<?> type) {
             try {
-                Field versionField = EventSourcedEntity.class.isAssignableFrom(entityClass) ?
+                Field versionField = EventSourcedEntity.class.isAssignableFrom(type) ?
                     EventSourcedEntity.class.getDeclaredField("_version") :
-                    entityClass.getDeclaredField("version");
+                    type.getDeclaredField("version");
                 versionField.setAccessible(true);
                 return Optional.ofNullable(versionField);
             } catch (NoSuchFieldException e) {
@@ -32,7 +35,7 @@ public abstract class AbstractRepository<T extends IdentifiedEntity<K>, K, D, DK
         }
     };
 
-    public AbstractRepository(DbObjectMapper<D> mapper, Optional<UnitOfWork> unitOfWork) {
+    public AbstractRepository(DbObjectMapper<D> mapper, Optional<Supplier<UnitOfWork>> unitOfWork) {
         this.mapper = mapper;
         this.entityClass = (Class<T>) getClassArgument(0);
         this.unitOfWork = unitOfWork;
@@ -42,7 +45,7 @@ public abstract class AbstractRepository<T extends IdentifiedEntity<K>, K, D, DK
         this(mapper, Optional.empty());
     }
 
-    public AbstractRepository(DbObjectMapper<D> mapper, UnitOfWork unitOfWork) {
+    public AbstractRepository(DbObjectMapper<D> mapper, Supplier<UnitOfWork> unitOfWork) {
         this(mapper, Optional.of(unitOfWork));
     }
 
@@ -70,7 +73,12 @@ public abstract class AbstractRepository<T extends IdentifiedEntity<K>, K, D, DK
     protected abstract DK toDbId(K id);
 
     protected T deserialize(D dbObject) {
-        return (T) mapper.mapToObject(dbObject);
+        T entity = (T) mapper.mapToObject(dbObject);
+        // put in the cache everything we deserialize
+        if (!isFlushing()) {
+            register(entity);
+        }
+        return entity;
     }
 
     protected D serialize(T entity) {
@@ -88,11 +96,11 @@ public abstract class AbstractRepository<T extends IdentifiedEntity<K>, K, D, DK
     }
 
     public void flush() {
-        unitOfWork.ifPresent(uow -> uow.flush(this));
+        withUow(uow -> uow.flush(this));
     }
 
     protected boolean isFlushing() {
-        return unitOfWork.map(UnitOfWork::isFlushing).orElse(true);
+        return unitOfWork.map(uow -> uow.get().isFlushing()).orElse(true);
     }
 
     protected <V> Optional<V> ifFlushing(Callable<V> c) {
@@ -109,10 +117,10 @@ public abstract class AbstractRepository<T extends IdentifiedEntity<K>, K, D, DK
     }
 
     protected Optional<T> reading(K id, Callable<Optional<T>> c) {
-        if (unitOfWork.map(uow -> uow.isRemoved(this, id)).orElse(false)) {
+        if (unitOfWork.map(uow -> uow.get().isRemoved(this, id)).orElse(false)) {
             return Optional.empty();
         }
-        Optional<T> cached = unitOfWork.flatMap(uow -> uow.get(this, id));
+        Optional<T> cached = unitOfWork.flatMap(uow -> uow.get().get(this, id));
         if (cached.isPresent()) {
             return cached;
         } else {
@@ -148,15 +156,19 @@ public abstract class AbstractRepository<T extends IdentifiedEntity<K>, K, D, DK
     }
 
     private void register(T entity) {
-        unitOfWork.ifPresent(uow -> uow.register(this, entity));
+        withUow(uow -> uow.register(this, entity));
     }
 
     private void changed(T entity) {
-        unitOfWork.ifPresent(uow -> uow.changed(this, entity));
+        withUow(uow -> uow.changed(this, entity));
     }
 
     private void removed(K id) {
-        unitOfWork.ifPresent(uow -> uow.removed(this, id));
+        withUow(uow -> uow.removed(this, id));
+    }
+
+    protected void withUow(Consumer<UnitOfWork> c) {
+        unitOfWork.ifPresent(uow -> c.accept(uow.get()));
     }
 
     /*
@@ -200,15 +212,15 @@ public abstract class AbstractRepository<T extends IdentifiedEntity<K>, K, D, DK
     }
 
     private void register(Iterable<T> entities) {
-        unitOfWork.ifPresent(uow -> entities.forEach(e -> uow.register(this, e)));
+        unitOfWork.ifPresent(uow -> entities.forEach(e -> uow.get().register(this, e)));
     }
 
     private void changed(Iterable<T> entities) {
-        unitOfWork.ifPresent(uow -> entities.forEach(e -> uow.changed(this, e)));
+        unitOfWork.ifPresent(uow -> entities.forEach(e -> uow.get().changed(this, e)));
     }
 
     private void removed(Iterable<K> ids) {
-        unitOfWork.ifPresent(uow -> ids.forEach(id -> uow.removed(this, id)));
+        unitOfWork.ifPresent(uow -> ids.forEach(id -> uow.get().removed(this, id)));
     }
     */
 }

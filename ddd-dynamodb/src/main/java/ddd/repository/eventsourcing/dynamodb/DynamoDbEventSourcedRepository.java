@@ -29,6 +29,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -49,7 +50,7 @@ public abstract class DynamoDbEventSourcedRepository<T extends EventSourcedEntit
             AmazonDynamoDB client,
             long readCapacityUnits,
             long writeCapacityUnits,
-            Optional<UnitOfWork> uow) {
+            Optional<Supplier<UnitOfWork>> uow) {
         this(client, null, readCapacityUnits, writeCapacityUnits, uow);
     }
 
@@ -58,7 +59,7 @@ public abstract class DynamoDbEventSourcedRepository<T extends EventSourcedEntit
             long readCapacityUnits,
             long writeCapacityUnits,
             DbObjectMapper<Item> mapper,
-            Optional<UnitOfWork> uow) {
+            Optional<Supplier<UnitOfWork>> uow) {
         this(client, null, readCapacityUnits, writeCapacityUnits, mapper, uow);
     }
 
@@ -68,7 +69,7 @@ public abstract class DynamoDbEventSourcedRepository<T extends EventSourcedEntit
             long readCapacityUnits,
             long writeCapacityUnits,
             DbObjectMapper<Item> mapper,
-            Optional<UnitOfWork> uow) {
+            Optional<Supplier<UnitOfWork>> uow) {
         this.tableName = tableName != null ? tableName : getClassArgument(0).getSimpleName();
         this.provisionedThroughput = new ProvisionedThroughput(readCapacityUnits, writeCapacityUnits);
         this.table = new ExtendedTable(client, this.tableName);
@@ -82,11 +83,11 @@ public abstract class DynamoDbEventSourcedRepository<T extends EventSourcedEntit
             String tableName,
             long readCapacityUnits,
             long writeCapacityUnits,
-            Optional<UnitOfWork> uow) {
+            Optional<Supplier<UnitOfWork>> uow) {
         this(client, tableName, readCapacityUnits, writeCapacityUnits, new GsonDynamoDbObjectMapper(), uow);
     }
 
-    public DynamoDbEventSourcedRepository(EventStore eventStore, Table table, DbObjectMapper<Item> mapper, Optional<UnitOfWork> uow) {
+    public DynamoDbEventSourcedRepository(EventStore eventStore, Table table, DbObjectMapper<Item> mapper, Optional<Supplier<UnitOfWork>> uow) {
         super(eventStore, mapper, uow);
         this.table     = new ExtendedTable(table);
         this.tableName = table.getTableName();

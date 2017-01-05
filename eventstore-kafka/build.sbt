@@ -2,7 +2,7 @@ name := "DDD Kafka"
 
 version := "1.0"
 
-scalaVersion := "2.11.8"
+scalaVersion in ThisBuild := "2.11.8"
 
 testOptions += Tests.Argument(TestFrameworks.JUnit, "-v", "-a")
 
@@ -14,7 +14,7 @@ libraryDependencies += "org.apache.kafka" % "kafka-clients" % "0.10.0.0"
 
 libraryDependencies += "org.apache.kafka" % "kafka-streams" % "0.10.0.0"
 
-libraryDependencies += "com.google.code.gson" % "gson" % "2.6.2"
+libraryDependencies += "com.google.code.gson" % "gson" % "2.8.0"
 
 libraryDependencies += "org.apache.curator" % "curator-recipes" % "2.11.0"
 

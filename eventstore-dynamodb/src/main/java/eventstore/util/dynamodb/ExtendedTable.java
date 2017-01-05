@@ -25,6 +25,7 @@ import com.amazonaws.services.dynamodbv2.model.ProvisionedThroughput;
 import com.amazonaws.services.dynamodbv2.model.ProvisionedThroughputDescription;
 import com.amazonaws.services.dynamodbv2.model.QueryRequest;
 import com.amazonaws.services.dynamodbv2.model.QueryResult;
+import com.amazonaws.services.dynamodbv2.model.ResourceInUseException;
 import com.amazonaws.services.dynamodbv2.model.ResourceNotFoundException;
 import com.amazonaws.services.dynamodbv2.model.ReturnValue;
 import com.amazonaws.services.dynamodbv2.model.ScanRequest;
@@ -116,11 +117,15 @@ public class ExtendedTable extends Table {
     }
 
     public boolean createIfNotExists(CreateTableRequest request) {
-        if (!exists()) {
-            client.createTable(request.withTableName(getTableName()));
-            return true;
+        try {
+            if (!exists()) {
+                client.createTable(request.withTableName(getTableName()));
+                return true;
+            }
+            return false;
+        } catch (ResourceInUseException e) {
+            return false;
         }
-        return false;
     }
 
 

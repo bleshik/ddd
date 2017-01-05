@@ -1,6 +1,7 @@
 package eventstore.util.mongodb;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
@@ -11,6 +12,7 @@ import eventstore.PayloadEvent;
 import eventstore.util.json.GsonJsonSerde;
 import eventstore.util.json.JsonDbObjectMapper;
 import java.lang.reflect.Field;
+import net.dongliu.gson.GsonJava8TypeAdapterFactory;
 
 /**
  * {@link Gson} based implementation of the mapper for MongoDB.
@@ -18,7 +20,7 @@ import java.lang.reflect.Field;
 public class GsonMongoDbObjectMapper extends JsonDbObjectMapper<DBObject> {
 
     public GsonMongoDbObjectMapper() {
-        this(new Gson());
+        this(new GsonBuilder().registerTypeAdapterFactory(new GsonJava8TypeAdapterFactory()).serializeNulls().create());
     }
 
     public GsonMongoDbObjectMapper(Gson gson) {

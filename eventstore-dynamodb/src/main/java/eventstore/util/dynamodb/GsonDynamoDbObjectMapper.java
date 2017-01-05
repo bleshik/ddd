@@ -2,9 +2,11 @@ package eventstore.util.dynamodb;
 
 import com.amazonaws.services.dynamodbv2.document.Item;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import eventstore.util.dynamodb.DynamoDbObjectMapper;
 import eventstore.util.json.GsonJsonSerde;
 import eventstore.util.json.JsonDbObjectMapper;
-import eventstore.util.dynamodb.DynamoDbObjectMapper;
+import net.dongliu.gson.GsonJava8TypeAdapterFactory;
 
 /**
  * {@link Gson} based implementation of the mapper for DynamoDB.
@@ -12,7 +14,7 @@ import eventstore.util.dynamodb.DynamoDbObjectMapper;
 public class GsonDynamoDbObjectMapper extends DynamoDbObjectMapper {
 
     public GsonDynamoDbObjectMapper() {
-        this(new Gson());
+        this(new GsonBuilder().registerTypeAdapterFactory(new GsonJava8TypeAdapterFactory()).serializeNulls().create());
     }
 
     public GsonDynamoDbObjectMapper(Gson gson) {

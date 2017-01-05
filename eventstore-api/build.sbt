@@ -2,7 +2,7 @@ name := "Event Store"
 
 version := "1.0"
 
-scalaVersion := "2.11.8"
+scalaVersion in ThisBuild := "2.11.8"
 
 testOptions += Tests.Argument(TestFrameworks.JUnit, "-v", "-a")
 
@@ -25,6 +25,6 @@ libraryDependencies += "junit" % "junit" % "4.12" % "test"
 // we might want to put this dependency away from the API module,
 // but currently this is used by all the implementations,
 // so we put utility classes in this module
-libraryDependencies += "com.google.code.gson" % "gson" % "2.6.2"
+libraryDependencies += "com.google.code.gson" % "gson" % "2.8.0"
 
 libraryDependencies += "net.dongliu" % "gson-java8-datatype" % "1.0.2"
