@@ -34,6 +34,9 @@ public class UnitOfWork implements AutoCloseable {
     }
 
     public <T extends IdentifiedEntity<K>, K, R extends PersistenceOrientedRepository<T, K>> void changed(R r, T entity) {
+        if (get(r, entity.getId()).map(e -> e == entity).orElse(false)) {
+            return;
+        }
         Class<? extends PersistenceOrientedRepository> rClass = r.getClass();
         if (!changed.containsKey(rClass)) {
             changed.put(rClass, new HashMap<>());
