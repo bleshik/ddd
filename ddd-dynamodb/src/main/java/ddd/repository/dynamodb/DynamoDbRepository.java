@@ -48,7 +48,7 @@ public abstract class DynamoDbRepository<T extends IdentifiedEntity<K>, K>
 
     public DynamoDbRepository(AmazonDynamoDB client, DbObjectMapper<Item> mapper, Optional<Supplier<UnitOfWork>> uof) {
         super(mapper, uof);
-        this.tableName = getClassArgument(0).getSimpleName();
+        this.tableName = getTableName(getClassArgument(0));
         this.table = new ExtendedTable(client, tableName);
         initialize(client);
     }
@@ -68,6 +68,10 @@ public abstract class DynamoDbRepository<T extends IdentifiedEntity<K>, K>
         super(mapper, uof);
         this.table     = new ExtendedTable(table);
         this.tableName = table.getTableName();
+    }
+
+    protected String getTableName(Class<T> entityClass) {
+        return entityClass.getSimpleName();
     }
 
     protected void initialize(AmazonDynamoDB client) {

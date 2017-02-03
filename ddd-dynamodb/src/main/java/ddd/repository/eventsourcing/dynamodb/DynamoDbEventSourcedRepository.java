@@ -70,7 +70,7 @@ public abstract class DynamoDbEventSourcedRepository<T extends EventSourcedEntit
             long writeCapacityUnits,
             DbObjectMapper<Item> mapper,
             Optional<Supplier<UnitOfWork>> uow) {
-        this.tableName = tableName != null ? tableName : getClassArgument(0).getSimpleName();
+        this.tableName = tableName != null ? tableName : getTableName(getClassArgument(0));
         this.provisionedThroughput = new ProvisionedThroughput(readCapacityUnits, writeCapacityUnits);
         this.table = new ExtendedTable(client, this.tableName);
         this.unitOfWork = uow;
@@ -95,6 +95,10 @@ public abstract class DynamoDbEventSourcedRepository<T extends EventSourcedEntit
             this.table.getProvisionedThroughput() :
             new ProvisionedThroughput(25L, 25L);
         initializeTable(this.table);
+    }
+
+    protected String getTableName(Class<T> entityClass) {
+        return entityClass.getSimpleName();
     }
 
     protected void initializeTable(ExtendedTable table) {
