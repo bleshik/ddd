@@ -78,7 +78,7 @@ public abstract class DynamoDbRepository<T extends IdentifiedEntity<K>, K>
         table.createIfNotExists(
             Arrays.asList(new AttributeDefinition("id", Number.class.isAssignableFrom(getClassArgument(1)) ? "N" : "S")),
             Arrays.asList(new KeySchemaElement("id", KeyType.HASH)),
-            new ProvisionedThroughput(25L, 25L)
+            new ProvisionedThroughput(1L, 1L)
         );
     }
 

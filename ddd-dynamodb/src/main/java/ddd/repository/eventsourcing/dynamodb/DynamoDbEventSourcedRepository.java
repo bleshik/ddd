@@ -93,7 +93,7 @@ public abstract class DynamoDbEventSourcedRepository<T extends EventSourcedEntit
         this.tableName = table.getTableName();
         this.provisionedThroughput = this.table.exists() ?
             this.table.getProvisionedThroughput() :
-            new ProvisionedThroughput(25L, 25L);
+            new ProvisionedThroughput(1L, 1L);
         initializeTable(this.table);
     }
 
