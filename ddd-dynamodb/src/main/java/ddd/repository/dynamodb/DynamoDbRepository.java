@@ -50,7 +50,6 @@ public abstract class DynamoDbRepository<T extends IdentifiedEntity<K>, K>
         super(mapper, uof);
         this.tableName = getTableName(getClassArgument(0));
         this.table = new ExtendedTable(client, tableName);
-        initialize(client);
     }
 
     public DynamoDbRepository(AmazonDynamoDB client, String tableName, Optional<Supplier<UnitOfWork>> uof) {
@@ -61,7 +60,6 @@ public abstract class DynamoDbRepository<T extends IdentifiedEntity<K>, K>
         super(mapper, uof);
         this.table = new ExtendedTable(client, tableName);
         this.tableName = tableName;
-        initialize(client);
     }
 
     public DynamoDbRepository(Table table, DbObjectMapper<Item> mapper, Optional<Supplier<UnitOfWork>> uof) {
@@ -72,14 +70,6 @@ public abstract class DynamoDbRepository<T extends IdentifiedEntity<K>, K>
 
     protected String getTableName(Class<T> entityClass) {
         return entityClass.getSimpleName();
-    }
-
-    protected void initialize(AmazonDynamoDB client) {
-        table.createIfNotExists(
-            Arrays.asList(new AttributeDefinition("id", Number.class.isAssignableFrom(getClassArgument(1)) ? "N" : "S")),
-            Arrays.asList(new KeySchemaElement("id", KeyType.HASH)),
-            new ProvisionedThroughput(1L, 1L)
-        );
     }
 
     @Override

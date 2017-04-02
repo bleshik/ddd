@@ -31,6 +31,10 @@ import com.amazonaws.services.dynamodbv2.model.ReturnValue;
 import com.amazonaws.services.dynamodbv2.model.ScanRequest;
 import com.amazonaws.services.dynamodbv2.model.ScanResult;
 import com.amazonaws.services.dynamodbv2.model.Select;
+import com.amazonaws.services.dynamodbv2.model.StreamSpecification;
+import com.amazonaws.services.dynamodbv2.model.StreamViewType;
+import com.amazonaws.services.dynamodbv2.model.UpdateTableRequest;
+import com.amazonaws.services.dynamodbv2.model.UpdateTableResult;
 import eventstore.util.collection.Collections;
 import java.lang.reflect.Field;
 import java.util.Arrays;
@@ -112,7 +116,8 @@ public class ExtendedTable extends Table {
     public boolean createIfNotExists(
             List<AttributeDefinition> attributes,
             List<KeySchemaElement> key,
-            ProvisionedThroughput t) {
+            ProvisionedThroughput t
+    ) {
         return createIfNotExists(new CreateTableRequest(attributes, getTableName(), key, t));
     }
 
@@ -128,6 +133,34 @@ public class ExtendedTable extends Table {
         }
     }
 
+    public UpdateTableResult updateTable(UpdateTableRequest request) {
+        if (!exists()) {
+            throw new IllegalStateException("Table " + getTableName() + " doesn't exists");
+        }
+        return client.updateTable(request);
+    }
+
+    public Optional<UpdateTableResult> enableStream() {
+        return enableStream(StreamViewType.NEW_IMAGE);
+    }
+
+    public Optional<UpdateTableResult> enableStream(StreamViewType type) {
+        try {
+            Optional<StreamSpecification> spec = Optional.ofNullable(waitForActive().getStreamSpecification());
+            if (!spec.map((s) -> s.getStreamEnabled()).orElse(false)) {
+                return Optional.of(
+                        updateTable(
+                            new UpdateTableRequest()
+                            .withTableName(this.getTableName())
+                            .withStreamSpecification(
+                                new StreamSpecification().withStreamEnabled(true).withStreamViewType(type)
+                            )
+                        )
+                );
+            }
+        } catch(InterruptedException ex) {}
+        return Optional.empty();
+    }
 
     public UpdateItemOutcome put(PrimaryKey key, String attribute, Object value) {
         return updateItem(key, new AttributeUpdate(attribute).put(value));
